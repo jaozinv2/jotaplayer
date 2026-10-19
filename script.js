@@ -16,6 +16,7 @@ const currentTimeEl = document.getElementById('current-time');
 const durationTimeEl = document.getElementById('duration-time');
 const glassContainer = document.querySelector('.glass-container');
 
+// Elementos de Configuração
 const btnThemeToggle = document.getElementById('btn-theme-toggle');
 const wallpaperInput = document.getElementById('wallpaper-input');
 const btnResetWallpaper = document.getElementById('btn-reset-wallpaper');
@@ -24,7 +25,9 @@ const jsMediatags = window.jsmediatags;
 let songs = [];
 let currentSongIndex = -1;
 
-// --- INICIALIZAÇÃO AO ABRIR A PÁGINA ---
+// --- PERSISTÊNCIA (LOCALSTORAGE) ---
+
+// Carrega preferências ao abrir a página
 document.addEventListener('DOMContentLoaded', () => {
   // 1. Carregar Tema Salvo
   const savedTheme = localStorage.getItem('app-theme');
@@ -32,9 +35,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.remove('dark-theme');
     document.body.classList.add('light-theme');
     btnThemeToggle.textContent = '🌙 Mudar para Escuro';
+  } else {
+    document.body.classList.remove('light-theme');
+    document.body.classList.add('dark-theme');
+    btnThemeToggle.textContent = '☀️ Mudar para Claro';
   }
 
-  // 2. Carregar Wallpaper Salvo (com tratamento seguro para mobile)
+  // 2. Carregar Wallpaper Salvo
   const savedWallpaper = localStorage.getItem('app-wallpaper');
   if (savedWallpaper) {
     document.body.style.backgroundImage = `url('${savedWallpaper}')`;
@@ -52,7 +59,7 @@ tabBtns.forEach(btn => {
   });
 });
 
-// --- CONFIGURAÇÕES: TEMA & WALLPAPER ---
+// --- CONFIGURAÇÕES: TEMA CLARO / ESCURO ---
 btnThemeToggle.addEventListener('click', () => {
   if (document.body.classList.contains('dark-theme')) {
     document.body.classList.remove('dark-theme');
@@ -67,20 +74,18 @@ btnThemeToggle.addEventListener('click', () => {
   }
 });
 
+// --- CONFIGURAÇÕES: WALLPAPER CUSTOMIZADO / PADRÃO ---
 wallpaperInput.addEventListener('change', (event) => {
   const file = event.target.files[0];
   if (file) {
     const reader = new FileReader();
     reader.onload = function(e) {
       const base64Image = e.target.result;
-      // Aplica imediatamente na tela
       document.body.style.backgroundImage = `url('${base64Image}')`;
       try {
-        // Sobrescreve o wallpaper anterior no localStorage de forma limpa
         localStorage.setItem('app-wallpaper', base64Image);
       } catch (err) {
-        console.warn('A imagem é muito grande para a memória do celular.');
-        alert('Esta imagem é muito pesada para salvar no navegador do celular. Escolha uma menor.');
+        console.warn('Imagem muito grande para salvar no localStorage.');
       }
     };
     reader.readAsDataURL(file);
@@ -92,13 +97,13 @@ btnResetWallpaper.addEventListener('click', () => {
   localStorage.removeItem('app-wallpaper');
 });
 
-// --- CARREGAR MÚSICAS (Compatível com PC e Android) ---
+// --- CARREGAR PASTA DE MÚSICAS ---
 folderInput.addEventListener('change', (event) => {
   const files = Array.from(event.target.files);
-  const audioFiles = files.filter(file => file.type.startsWith('audio/') || file.name.endsWith('.mp3') || file.name.endsWith('.m4a'));
+  const audioFiles = files.filter(file => file.type.startsWith('audio/'));
 
   if (audioFiles.length === 0) {
-    songListElement.innerHTML = '<li class="empty-msg">Nenhum áudio compatível encontrado.</li>';
+    songListElement.innerHTML = '<li class="empty-msg">Nenhum áudio encontrado.</li>';
     return;
   }
 
@@ -106,33 +111,28 @@ folderInput.addEventListener('change', (event) => {
   songs = [];
 
   audioFiles.forEach((file) => {
-    if (jsMediatags) {
-      jsMediatags.read(file, {
-        onSuccess: function(tag) {
-          const title = tag.tags.title || file.name.replace(/\.[^/.]+$/, "");
-          const artist = tag.tags.artist || "Desconhecido";
-          
-          let pictureUrl = null;
-          if (tag.tags.picture) {
-            const { data, format } = tag.tags.picture;
-            let base64String = "";
-            for (let i = 0; i < data.length; i++) {
-              base64String += String.fromCharCode(data[i]);
-            }
-            pictureUrl = `data:${format};base64,${btoa(base64String)}`;
+    jsMediatags.read(file, {
+      onSuccess: function(tag) {
+        const title = tag.tags.title || file.name.replace(/\.[^/.]+$/, "");
+        const artist = tag.tags.artist || "Artista Desconhecido";
+        
+        let pictureUrl = null;
+        if (tag.tags.picture) {
+          const { data, format } = tag.tags.picture;
+          let base64String = "";
+          for (let i = 0; i < data.length; i++) {
+            base64String += String.fromCharCode(data[i]);
           }
-
-          addSongToList(file, title, artist, pictureUrl);
-        },
-        onError: function() {
-          const title = file.name.replace(/\.[^/.]+$/, "");
-          addSongToList(file, title, "Desconhecido", null);
+          pictureUrl = `data:${format};base64,${btoa(base64String)}`;
         }
-      });
-    } else {
-      const title = file.name.replace(/\.[^/.]+$/, "");
-      addSongToList(file, title, "Desconhecido", null);
-    }
+
+        addSongToList(file, title, artist, pictureUrl);
+      },
+      onError: function() {
+        const title = file.name.replace(/\.[^/.]+$/, "");
+        addSongToList(file, title, "Artista Desconhecido", null);
+      }
+    });
   });
 });
 
