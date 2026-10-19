@@ -3,109 +3,626 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Music Player Glassmorphism</title>
-  <link rel="stylesheet" href="style.css">
+  <title>jotaplayer</title>
+  <!-- Biblioteca para ler metadados das músicas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-image: url('background.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      transition: background 0.3s ease;
+    }
+
+    body.light-theme {
+      color: #333;
+    }
+
+    .glass-container {
+      width: 380px;
+      height: 600px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    body.light-theme .glass-container {
+      background: rgba(255, 255, 255, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+    }
+
+    /* Conteúdo das Abas */
+    .tab-content {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tab-pane {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+      flex-direction: column;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .tab-pane.active {
+      display: flex;
+    }
+
+    /* Estilo Aba Player */
+    .player-screen {
+      align-items: center;
+      justify-content: space-around;
+      text-align: center;
+    }
+
+    .cover-art {
+      width: 180px;
+      height: 180px;
+      border-radius: 15px;
+      background-color: rgba(0, 0, 0, 0.2);
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .cover-placeholder {
+      font-size: 50px;
+    }
+
+    .song-details h2 {
+      font-size: 18px;
+      margin-bottom: 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 300px;
+    }
+
+    .song-details p {
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    .progress-container {
+      width: 100%;
+    }
+
+    .progress-bar {
+      width: 100%;
+      cursor: pointer;
+    }
+
+    .time-stamps {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      opacity: 0.8;
+      margin-top: 5px;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .controls button {
+      background: none;
+      border: none;
+      color: inherit;
+      font-size: 24px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .controls button:active {
+      transform: scale(0.9);
+    }
+
+    .controls .play-btn {
+      font-size: 36px;
+    }
+
+    .volume-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 80%;
+      font-size: 14px;
+    }
+
+    .volume-container input {
+      flex: 1;
+      cursor: pointer;
+    }
+
+    /* Estilo Aba Biblioteca */
+    .library-screen h2 {
+      margin-bottom: 15px;
+      font-size: 18px;
+    }
+
+    .upload-btn-label {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 10px 15px;
+      border-radius: 10px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 14px;
+      border: 1px dashed rgba(255, 255, 255, 0.4);
+      margin-bottom: 15px;
+      transition: background 0.2s;
+    }
+
+    .upload-btn-label:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    #folder-input {
+      display: none;
+    }
+
+    .song-list {
+      list-style: none;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .song-item {
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .song-item:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .song-item.active {
+      background: rgba(255, 255, 255, 0.3);
+      border-left: 4px solid #fff;
+    }
+
+    .song-info .title {
+      font-size: 14px;
+      font-weight: bold;
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .song-info .artist {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+
+    .empty-msg {
+      text-align: center;
+      opacity: 0.6;
+      margin-top: 40px;
+      font-size: 14px;
+    }
+
+    /* Estilo Aba Configurações */
+    .settings-screen h2 {
+      margin-bottom: 20px;
+      font-size: 18px;
+    }
+
+    .setting-group {
+      margin-bottom: 20px;
+    }
+
+    .setting-group label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 8px;
+      opacity: 0.9;
+    }
+
+    .setting-btn {
+      width: 100%;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.1);
+      color: inherit;
+      cursor: pointer;
+      font-size: 14px;
+      text-align: center;
+      transition: background 0.2s;
+    }
+
+    .setting-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Barra de Navegação Inferior */
+    .nav-bar {
+      height: 60px;
+      background: rgba(0, 0, 0, 0.2);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    body.light-theme .nav-bar {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: inherit;
+      opacity: 0.6;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: opacity 0.2s;
+    }
+
+    .tab-btn.active {
+      opacity: 1;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body class="dark-theme">
 
   <div class="glass-container">
-    
-    <!-- Navegação por Abas (Inferior) -->
-    <nav class="nav-tabs">
-      <button class="tab-btn active" data-tab="tab-player">▶ Tocador</button>
-      <button class="tab-btn" data-tab="tab-library">🎵 Biblioteca</button>
-      <button class="tab-btn" data-tab="tab-settings">⚙️ Ajustes</button>
-    </nav>
-
-    <!-- CONTEÚDO DAS ABAS -->
     <div class="tab-content">
-
-      <!-- ABA 1: PLAYER DEDICADO -->
-      <section id="tab-player" class="tab-pane active">
-        <div class="player-view">
-          
-          <div class="album-cover-wrapper">
-            <div id="cover-art" class="album-cover">
-              <span class="cover-placeholder">🎵</span>
-            </div>
-          </div>
-
-          <div class="track-details">
-            <h2 id="player-title">Nenhuma faixa selecionada</h2>
-            <p id="player-artist">Carregue suas músicas na biblioteca</p>
-          </div>
-
-          <div class="progress-section">
+      
+      <!-- ABA PLAYER -->
+      <div id="player" class="tab-pane player-screen active">
+        <div class="cover-art" id="cover-art">
+          <span class="cover-placeholder">🎵</span>
+        </div>
+        <div class="song-details">
+          <h2 id="player-title">Nenhuma música</h2>
+          <p id="player-artist">Selecione na Biblioteca</p>
+        </div>
+        <div class="progress-container">
+          <input type="range" id="seek-bar" class="progress-bar" value="0" min="0" max="100">
+          <div class="time-stamps">
             <span id="current-time">0:00</span>
-            <input type="range" id="seek-bar" value="0" max="100" step="0.1">
             <span id="duration-time">0:00</span>
           </div>
-
-          <div class="controls-row">
-            <button id="btn-prev" class="control-btn" title="Anterior">⏮</button>
-            <button id="btn-play" class="control-btn play-btn" title="Play/Pause">▶</button>
-            <button id="btn-next" class="control-btn" title="Próxima">⏭</button>
-          </div>
-
-          <div class="volume-section">
-            <span>🔊</span>
-            <input type="range" id="volume-bar" value="100" max="100">
-          </div>
-
         </div>
-      </section>
-
-      <!-- ABA 2: BIBLIOTECA DE MÚSICAS -->
-      <section id="tab-library" class="tab-pane">
-        <header class="library-header">
-          <h3>Sua Coleção</h3>
-          <label for="folder-input" class="file-btn">
-            <span>📁 Carregar Pasta</span>
-            <input type="file" id="folder-input" webkitdirectory directory multiple accept="audio/*">
-          </label>
-        </header>
-
-        <div class="song-list-container">
-          <ul id="song-list" class="song-list">
-            <li class="empty-msg">Nenhuma música carregada. Clique em "Carregar Pasta" para adicionar suas faixas.</li>
-          </ul>
+        <div class="controls">
+          <button id="btn-prev">⏮</button>
+          <button id="btn-play" class="play-btn">▶</button>
+          <button id="btn-next">⏭</button>
         </div>
-      </section>
-
-      <!-- ABA 3: CONFIGURAÇÕES -->
-      <section id="tab-settings" class="tab-pane">
-        <header class="library-header">
-          <h3>Configurações</h3>
-        </header>
-
-        <div class="settings-content">
-          <!-- Alternar Tema -->
-          <div class="setting-item">
-            <span>Tema da Interface</span>
-            <button id="btn-theme-toggle" class="setting-action-btn">☀️ Mudar para Claro</button>
-          </div>
-
-          <!-- Escolher Wallpaper -->
-          <div class="setting-item">
-            <span>Plano de Fundo (Wallpaper)</span>
-            <label for="wallpaper-input" class="setting-action-btn file-label">
-              🖼️ Escolher Imagem
-              <input type="file" id="wallpaper-input" accept="image/*">
-            </label>
-          </div>
-          
-          <div class="setting-item reset-wp">
-            <button id="btn-reset-wallpaper" class="setting-action-btn secondary">Restaurar Wallpaper Original</button>
-          </div>
+        <div class="volume-container">
+          <span>🔊</span>
+          <input type="range" id="volume-bar" value="100" min="0" max="100">
         </div>
-      </section>
+      </div>
+
+      <!-- ABA BIBLIOTECA -->
+      <div id="library" class="tab-pane library-screen">
+        <h2>Biblioteca de Músicas</h2>
+        <label for="folder-input" class="upload-btn-label">📁 Adicionar Músicas / Pasta</label>
+        <!-- Compatível com PC e Android (permite múltiplos arquivos) -->
+        <input type="file" id="folder-input" multiple accept="audio/*">
+        
+        <ul id="song-list" class="song-list">
+          <li class="empty-msg">Nenhuma música carregada.</li>
+        </ul>
+      </div>
+
+      <!-- ABA CONFIGURAÇÕES -->
+      <div id="settings" class="tab-pane settings-screen">
+        <h2>Configurações</h2>
+        
+        <div class="setting-group">
+          <label>Tema da Interface</label>
+          <button id="btn-theme-toggle" class="setting-btn">☀️ Mudar para Claro</button>
+        </div>
+
+        <div class="setting-group">
+          <label>Papel de Parede Personalizado</label>
+          <label for="wallpaper-input" class="setting-btn" style="display: block; box-sizing: border-box;">🖼️ Escolher Wallpaper</label>
+          <input type="file" id="wallpaper-input" accept="image/*" style="display: none;">
+        </div>
+
+        <div class="setting-group">
+          <label>Restaurar Padrão</label>
+          <button id="btn-reset-wallpaper" class="setting-btn">🔄 Wallpaper Padrão</button>
+        </div>
+      </div>
 
     </div>
 
-    <audio id="audio-player"></audio>
+    <!-- NAVEGAÇÃO INFERIOR -->
+    <div class="nav-bar">
+      <button class="tab-btn active" data-tab="player">🎵 <span>Player</span></button>
+      <button class="tab-btn" data-tab="library">📚 <span>Biblioteca</span></button>
+      <button class="tab-btn" data-tab="settings">⚙️ <span>Ajustes</span></button>
+    </div>
   </div>
 
-  <script src="script.js"></script>
+  <audio id="audio-player"></audio>
+
+  <script>
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+    const folderInput = document.getElementById('folder-input');
+    const songListElement = document.getElementById('song-list');
+    const audioPlayer = document.getElementById('audio-player');
+
+    const playerTitle = document.getElementById('player-title');
+    const playerArtist = document.getElementById('player-artist');
+    const coverArt = document.getElementById('cover-art');
+    const btnPlay = document.getElementById('btn-play');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const seekBar = document.getElementById('seek-bar');
+    const volumeBar = document.getElementById('volume-bar');
+    const currentTimeEl = document.getElementById('current-time');
+    const durationTimeEl = document.getElementById('duration-time');
+    const glassContainer = document.querySelector('.glass-container');
+
+    const btnThemeToggle = document.getElementById('btn-theme-toggle');
+    const wallpaperInput = document.getElementById('wallpaper-input');
+    const btnResetWallpaper = document.getElementById('btn-reset-wallpaper');
+
+    const jsMediatags = window.jsmediatags;
+    let songs = [];
+    let currentSongIndex = -1;
+
+    // --- INICIALIZAÇÃO AO ABRIR A PÁGINA ---
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedTheme = localStorage.getItem('app-theme');
+      if (savedTheme === 'light') {
+        document.body.classList.remove('dark-theme');
+        document.body.classList.add('light-theme');
+        btnThemeToggle.textContent = '🌙 Mudar para Escuro';
+      }
+
+      const savedWallpaper = localStorage.getItem('app-wallpaper');
+      if (savedWallpaper) {
+        document.body.style.backgroundImage = `url('${savedWallpaper}')`;
+      }
+    });
+
+    // --- SISTEMA DE ABAS ---
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabBtns.forEach(b => b.classList.remove('active'));
+        tabPanes.forEach(p => p.classList.remove('active'));
+
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // --- CONFIGURAÇÕES: TEMA & WALLPAPER ---
+    btnThemeToggle.addEventListener('click', () => {
+      if (document.body.classList.contains('dark-theme')) {
+        document.body.classList.remove('dark-theme');
+        document.body.classList.add('light-theme');
+        btnThemeToggle.textContent = '🌙 Mudar para Escuro';
+        localStorage.setItem('app-theme', 'light');
+      } else {
+        document.body.classList.remove('light-theme');
+        document.body.classList.add('dark-theme');
+        btnThemeToggle.textContent = '☀️ Mudar para Claro';
+        localStorage.setItem('app-theme', 'dark');
+      }
+    });
+
+    wallpaperInput.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const base64Image = e.target.result;
+          document.body.style.backgroundImage = `url('${base64Image}')`;
+          try {
+            localStorage.setItem('app-wallpaper', base64Image);
+          } catch (err) {
+            alert('Esta imagem é muito pesada para salvar no armazenamento do celular.');
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    btnResetWallpaper.addEventListener('click', () => {
+      document.body.style.backgroundImage = "url('background.jpg')";
+      localStorage.removeItem('app-wallpaper');
+    });
+
+    // --- CARREGAR MÚSICAS ---
+    folderInput.addEventListener('change', (event) => {
+      const files = Array.from(event.target.files);
+      const audioFiles = files.filter(file => file.type.startsWith('audio/') || file.name.endsWith('.mp3') || file.name.endsWith('.m4a'));
+
+      if (audioFiles.length === 0) {
+        songListElement.innerHTML = '<li class="empty-msg">Nenhum áudio compatível encontrado.</li>';
+        return;
+      }
+
+      songListElement.innerHTML = '';
+      songs = [];
+
+      audioFiles.forEach((file) => {
+        if (jsMediatags) {
+          jsMediatags.read(file, {
+            onSuccess: function(tag) {
+              const title = tag.tags.title || file.name.replace(/\.[^/.]+$/, "");
+              const artist = tag.tags.artist || "Desconhecido";
+              
+              let pictureUrl = null;
+              if (tag.tags.picture) {
+                const { data, format } = tag.tags.picture;
+                let base64String = "";
+                for (let i = 0; i < data.length; i++) {
+                  base64String += String.fromCharCode(data[i]);
+                }
+                pictureUrl = `data:${format};base64,${btoa(base64String)}`;
+              }
+
+              addSongToList(file, title, artist, pictureUrl);
+            },
+            onError: function() {
+              const title = file.name.replace(/\.[^/.]+$/, "");
+              addSongToList(file, title, "Desconhecido", null);
+            }
+          });
+        } else {
+          const title = file.name.replace(/\.[^/.]+$/, "");
+          addSongToList(file, title, "Desconhecido", null);
+        }
+      });
+    });
+
+    function addSongToList(file, title, artist, pictureUrl) {
+      const index = songs.length;
+      const songObj = { file, title, artist, pictureUrl, url: URL.createObjectURL(file) };
+      songs.push(songObj);
+
+      const li = document.createElement('li');
+      li.className = 'song-item';
+      li.innerHTML = `
+        <div class="song-info">
+          <span class="title">${title}</span>
+          <span class="artist">${artist}</span>
+        </div>
+      `;
+
+      li.addEventListener('click', () => {
+        loadAndPlaySong(index);
+      });
+
+      songListElement.appendChild(li);
+    }
+
+    // --- CONTROLES DE ÁUDIO ---
+    function loadAndPlaySong(index) {
+      if (index < 0 || index >= songs.length) return;
+
+      currentSongIndex = index;
+      const song = songs[index];
+
+      playerTitle.textContent = song.title;
+      playerArtist.textContent = song.artist;
+
+      if (song.pictureUrl) {
+        coverArt.style.backgroundImage = `url(${song.pictureUrl})`;
+        coverArt.innerHTML = '';
+      } else {
+        coverArt.style.backgroundImage = 'none';
+        coverArt.innerHTML = '<span class="cover-placeholder">🎵</span>';
+      }
+
+      const items = songListElement.querySelectorAll('.song-item');
+      items.forEach((item, i) => {
+        item.classList.toggle('active', i === index);
+      });
+
+      audioPlayer.src = song.url;
+      audioPlayer.play();
+      btnPlay.textContent = '⏸';
+      glassContainer.classList.add('playing');
+    }
+
+    btnPlay.addEventListener('click', () => {
+      if (currentSongIndex === -1 && songs.length > 0) {
+        loadAndPlaySong(0);
+        return;
+      }
+
+      if (audioPlayer.paused) {
+        audioPlayer.play();
+        btnPlay.textContent = '⏸';
+        glassContainer.classList.add('playing');
+      } else {
+        audioPlayer.pause();
+        btnPlay.textContent = '▶';
+        glassContainer.classList.remove('playing');
+      }
+    });
+
+    btnNext.addEventListener('click', () => {
+      if (songs.length === 0) return;
+      const nextIndex = (currentSongIndex + 1) % songs.length;
+      loadAndPlaySong(nextIndex);
+    });
+
+    btnPrev.addEventListener('click', () => {
+      if (songs.length === 0) return;
+      const prevIndex = (currentSongIndex - 1 + songs.length) % songs.length;
+      loadAndPlaySong(prevIndex);
+    });
+
+    audioPlayer.addEventListener('timeupdate', () => {
+      if (!isNaN(audioPlayer.duration)) {
+        const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+        seekBar.value = progress;
+
+        currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
+        durationTimeEl.textContent = formatTime(audioPlayer.duration);
+      }
+    });
+
+    seekBar.addEventListener('input', () => {
+      if (!isNaN(audioPlayer.duration)) {
+        audioPlayer.currentTime = (seekBar.value / 100) * audioPlayer.duration;
+      }
+    });
+
+    volumeBar.addEventListener('input', () => {
+      audioPlayer.volume = volumeBar.value / 100;
+    });
+
+    audioPlayer.addEventListener('ended', () => {
+      btnNext.click();
+    });
+
+    function formatTime(seconds) {
+      const min = Math.floor(seconds / 60);
+      const sec = Math.floor(seconds % 60);
+      return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+    }
+  </script>
 </body>
 </html>
