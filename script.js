@@ -48,37 +48,61 @@ function initDB() {
   });
 }
 
-// Salvar músicas no IndexedDB
-function saveSongsToDB(audioFiles) {
+// Extrai metadados do arquivo em forma de Promise
+function readMetadata(file) {
+  return new Promise((resolve) => {
+    if (!jsMediatags) {
+      resolve({
+        title: file.name.replace(/\.[^/.]+$/, ""),
+        artist: "Artista Desconhecido",
+        pictureUrl: null
+      });
+      return;
+    }
+
+    jsMediatags.read(file, {
+      onSuccess: function(tag) {
+        const title = tag.tags.title || file.name.replace(/\.[^/.]+$/, "");
+        const artist = tag.tags.artist || "Artista Desconhecido";
+        
+        let pictureUrl = null;
+        if (tag.tags.picture) {
+          const { data, format } = tag.tags.picture;
+          let base64String = "";
+          for (let i = 0; i < data.length; i++) {
+            base64String += String.fromCharCode(data[i]);
+          }
+          pictureUrl = `data:${format};base64,${btoa(base64String)}`;
+        }
+
+        resolve({ title, artist, pictureUrl });
+      },
+      onError: function() {
+        resolve({
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          artist: "Artista Desconhecido",
+          pictureUrl: null
+        });
+      }
+    });
+  });
+}
+
+// Salvar músicas processadas no IndexedDB
+function saveSongsToDB(parsedSongs) {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(storeName, "readwrite");
     const store = transaction.objectStore(storeName);
     
-    // Limpa a base anterior para atualizar com a nova pasta
+    // Limpa a base anterior antes de salvar a nova lista
     store.clear();
 
-    audioFiles.forEach(file => {
-      jsMediatags.read(file, {
-        onSuccess: function(tag) {
-          const title = tag.tags.title || file.name.replace(/\.[^/.]+$/, "");
-          const artist = tag.tags.artist || "Artista Desconhecido";
-          
-          let pictureUrl = null;
-          if (tag.tags.picture) {
-            const { data, format } = tag.tags.picture;
-            let base64String = "";
-            for (let i = 0; i < data.length; i++) {
-              base64String += String.fromCharCode(data[i]);
-            }
-            pictureUrl = `data:${format};base64,${btoa(base64String)}`;
-          }
-
-          store.add({ file, title, artist, pictureUrl });
-        },
-        onError: function() {
-          const title = file.name.replace(/\.[^/.]+$/, "");
-          store.add({ file, title, artist: "Artista Desconhecido", pictureUrl: null });
-        }
+    parsedSongs.forEach(item => {
+      store.add({
+        file: item.file,
+        title: item.title,
+        artist: item.artist,
+        pictureUrl: item.pictureUrl
       });
     });
 
@@ -87,7 +111,7 @@ function saveSongsToDB(audioFiles) {
   });
 }
 
-// Carregar músicas salvas do IndexedDB ao iniciar
+// Carregar músicas salvas do IndexedDB
 function loadSongsFromDB() {
   return new Promise((resolve) => {
     if (!db) return resolve([]);
@@ -104,7 +128,7 @@ function loadSongsFromDB() {
 
 // --- INICIALIZAÇÃO AO ABRIR A PÁGINA ---
 document.addEventListener('DOMContentLoaded', async () => {
-  // 1. Tema Salvo
+  // 1. Carregar Tema
   const savedTheme = localStorage.getItem('app-theme');
   if (savedTheme === 'light') {
     document.body.classList.remove('dark-theme');
@@ -112,13 +136,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnThemeToggle.textContent = '🌙 Mudar para Escuro';
   }
 
-  // 2. Wallpaper Salvo
+  // 2. Carregar Wallpaper
   const savedWallpaper = localStorage.getItem('app-wallpaper');
   if (savedWallpaper) {
     document.body.style.backgroundImage = `url('${savedWallpaper}')`;
   }
 
-  // 3. Inicializar DB e carregar músicas salvas anteriormente
+  // 3. Inicializar Banco de Dados e Restaurar Músicas
   try {
     await initDB();
     const savedSongs = await loadSongsFromDB();
@@ -134,7 +158,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// --- SISTEMA DE ABAS ---
+// --- NAVEGAÇÃO DE ABAS ---
 tabBtns.forEach(btn => {
   btn.addEventListener('click', () => {
     tabBtns.forEach(b => b.classList.remove('active'));
@@ -145,7 +169,7 @@ tabBtns.forEach(btn => {
   });
 });
 
-// --- CONFIGURAÇÕES: TEMA & WALLPAPER ---
+// --- AJUSTES: TEMA & WALLPAPER ---
 btnThemeToggle.addEventListener('click', () => {
   if (document.body.classList.contains('dark-theme')) {
     document.body.classList.remove('dark-theme');
@@ -170,7 +194,7 @@ wallpaperInput.addEventListener('change', (event) => {
       try {
         localStorage.setItem('app-wallpaper', base64Image);
       } catch (err) {
-        console.warn('Imagem muito grande.');
+        console.warn('Imagem muito grande para guardar no localStorage.');
       }
     };
     reader.readAsDataURL(file);
@@ -192,15 +216,27 @@ folderInput.addEventListener('change', async (event) => {
     return;
   }
 
-  songListElement.innerHTML = '';
+  songListElement.innerHTML = '<li class="empty-msg">A carregar e guardar músicas...</li>';
   songs = [];
 
-  // Salva no IndexedDB do navegador
-  await saveSongsToDB(audioFiles);
+  // Extrai metadados de todos os arquivos primeiro
+  const parsedSongs = [];
+  for (const file of audioFiles) {
+    const meta = await readMetadata(file);
+    parsedSongs.push({
+      file,
+      title: meta.title,
+      artist: meta.artist,
+      pictureUrl: meta.pictureUrl
+    });
+  }
 
-  // Recarrega do banco para exibir na tela perfeitamente
-  const savedSongs = await loadSongsFromDB();
-  savedSongs.forEach((item) => {
+  // Guarda no IndexedDB após o processamento completo
+  await saveSongsToDB(parsedSongs);
+
+  // Exibe as músicas salvas na interface
+  songListElement.innerHTML = '';
+  parsedSongs.forEach((item) => {
     addSongToList(item.file, item.title, item.artist, item.pictureUrl);
   });
 });
@@ -226,7 +262,7 @@ function addSongToList(file, title, artist, pictureUrl) {
   songListElement.appendChild(li);
 }
 
-// --- CONTROLES DE ÁUDIO ---
+// --- CONTROLES DO PLAYER ---
 function loadAndPlaySong(index) {
   if (index < 0 || index >= songs.length) return;
 
