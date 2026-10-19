@@ -1,5 +1,6 @@
 const tabBtns = document.querySelectorAll('.tab-btn');
 const tabPanes = document.querySelectorAll('.tab-pane');
+const folderInput = document.getElementById('folder-input');
 const songListElement = document.getElementById('song-list');
 const audioPlayer = document.getElementById('audio-player');
 
@@ -19,10 +20,11 @@ const btnThemeToggle = document.getElementById('btn-theme-toggle');
 const wallpaperInput = document.getElementById('wallpaper-input');
 const btnResetWallpaper = document.getElementById('btn-reset-wallpaper');
 
+const jsMediatags = window.jsmediatags;
 let songs = [];
 let currentSongIndex = -1;
 
-// --- INICIALIZAÇÃO AO ABRIR A PÁGINA ---
+// --- INICIALIZAÇÃO AO ABRIR A PÁGINA (Apenas Tema e Wallpaper) ---
 document.addEventListener('DOMContentLoaded', () => {
   // 1. Carregar Tema Salvo
   const savedTheme = localStorage.getItem('app-theme');
@@ -37,53 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (savedWallpaper) {
     document.body.style.backgroundImage = `url('${savedWallpaper}')`;
   }
-
-  // 3. Carregar as músicas automaticamente do playlist.json
-  loadPlaylistFromJson();
 });
-
-function loadPlaylistFromJson() {
-  songListElement.innerHTML = '<li class="empty-msg">Carregando músicas...</li>';
-
-  fetch('playlist.json')
-    .then(response => {
-      if (!response.ok) throw new Error("Erro ao carregar o arquivo playlist.json");
-      return response.json();
-    })
-    .then(data => {
-      songListElement.innerHTML = '';
-      songs = [];
-
-      data.forEach((item, index) => {
-        const songObj = {
-          title: item.title,
-          artist: item.artist,
-          pictureUrl: null,
-          url: item.file
-        };
-        songs.push(songObj);
-
-        const li = document.createElement('li');
-        li.className = 'song-item';
-        li.innerHTML = `
-          <div class="song-info">
-            <span class="title">${item.title}</span>
-            <span class="artist">${item.artist}</span>
-          </div>
-        `;
-
-        li.addEventListener('click', () => {
-          loadAndPlaySong(index);
-        });
-
-        songListElement.appendChild(li);
-      });
-    })
-    .catch(err => {
-      console.error(err);
-      songListElement.innerHTML = '<li class="empty-msg">Erro ao carregar a playlist.</li>';
-    });
-}
 
 // --- SISTEMA DE ABAS ---
 tabBtns.forEach(btn => {
@@ -133,6 +89,71 @@ btnResetWallpaper.addEventListener('click', () => {
   localStorage.removeItem('app-wallpaper');
 });
 
+// --- CARREGAR PASTA DE MÚSICAS MANUALMENTE ---
+folderInput.addEventListener('change', (event) => {
+  const files = Array.from(event.target.files);
+  const audioFiles = files.filter(file => file.type.startsWith('audio/'));
+
+  if (audioFiles.length === 0) {
+    songListElement.innerHTML = '<li class="empty-msg">Nenhum áudio encontrado.</li>';
+    return;
+  }
+
+  songListElement.innerHTML = '';
+  songs = [];
+
+  audioFiles.forEach((file) => {
+    if (jsMediatags) {
+      jsMediatags.read(file, {
+        onSuccess: function(tag) {
+          const title = tag.tags.title || file.name.replace(/\.[^/.]+$/, "");
+          const artist = tag.tags.artist || "Desconhecido";
+          
+          let pictureUrl = null;
+          if (tag.tags.picture) {
+            const { data, format } = tag.tags.picture;
+            let base64String = "";
+            for (let i = 0; i < data.length; i++) {
+              base64String += String.fromCharCode(data[i]);
+            }
+            pictureUrl = `data:${format};base64,${btoa(base64String)}`;
+          }
+
+          addSongToList(file, title, artist, pictureUrl);
+        },
+        onError: function() {
+          const title = file.name.replace(/\.[^/.]+$/, "");
+          addSongToList(file, title, "Desconhecido", null);
+        }
+      });
+    } else {
+      const title = file.name.replace(/\.[^/.]+$/, "");
+      addSongToList(file, title, "Desconhecido", null);
+    }
+  });
+});
+
+function addSongToList(file, title, artist, pictureUrl) {
+  const index = songs.length;
+  const songObj = { file, title, artist, pictureUrl, url: URL.createObjectURL(file) };
+  songs.push(songObj);
+
+  const li = document.createElement('li');
+  li.className = 'song-item';
+  li.innerHTML = `
+    <div class="song-info">
+      <span class="title">${title}</span>
+      <span class="artist">${artist}</span>
+    </div>
+  `;
+
+  li.addEventListener('click', () => {
+    loadAndPlaySong(index);
+  });
+
+  songListElement.appendChild(li);
+}
+
 // --- CONTROLES DE ÁUDIO ---
 function loadAndPlaySong(index) {
   if (index < 0 || index >= songs.length) return;
@@ -143,8 +164,13 @@ function loadAndPlaySong(index) {
   playerTitle.textContent = song.title;
   playerArtist.textContent = song.artist;
 
-  coverArt.style.backgroundImage = 'none';
-  coverArt.innerHTML = '<span class="cover-placeholder">🎵</span>';
+  if (song.pictureUrl) {
+    coverArt.style.backgroundImage = `url(${song.pictureUrl})`;
+    coverArt.innerHTML = '';
+  } else {
+    coverArt.style.backgroundImage = 'none';
+    coverArt.innerHTML = '<span class="cover-placeholder">🎵</span>';
+  }
 
   const items = songListElement.querySelectorAll('.song-item');
   items.forEach((item, i) => {
@@ -177,7 +203,7 @@ btnPlay.addEventListener('click', () => {
 btnNext.addEventListener('click', () => {
   if (songs.length === 0) return;
   const nextIndex = (currentSongIndex + 1) % songs.length;
-  loadAndPlaySong(nextIndex);
+  loadAndPaySong(nextIndex); // Corrigido para loadAndPlaySong
 });
 
 btnPrev.addEventListener('click', () => {
