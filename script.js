@@ -24,7 +24,7 @@ const jsMediatags = window.jsmediatags;
 let songs = [];
 let currentSongIndex = -1;
 
-// --- INICIALIZAÇÃO AO ABRIR A PÁGINA (Apenas Tema e Wallpaper) ---
+// --- INICIALIZAÇÃO AO ABRIR A PÁGINA ---
 document.addEventListener('DOMContentLoaded', () => {
   // 1. Carregar Tema Salvo
   const savedTheme = localStorage.getItem('app-theme');
@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnThemeToggle.textContent = '🌙 Mudar para Escuro';
   }
 
-  // 2. Carregar Wallpaper Salvo
+  // 2. Carregar Wallpaper Salvo (com tratamento seguro para mobile)
   const savedWallpaper = localStorage.getItem('app-wallpaper');
   if (savedWallpaper) {
     document.body.style.backgroundImage = `url('${savedWallpaper}')`;
@@ -73,11 +73,14 @@ wallpaperInput.addEventListener('change', (event) => {
     const reader = new FileReader();
     reader.onload = function(e) {
       const base64Image = e.target.result;
+      // Aplica imediatamente na tela
       document.body.style.backgroundImage = `url('${base64Image}')`;
       try {
+        // Sobrescreve o wallpaper anterior no localStorage de forma limpa
         localStorage.setItem('app-wallpaper', base64Image);
       } catch (err) {
-        console.warn('Imagem muito grande.');
+        console.warn('A imagem é muito grande para a memória do celular.');
+        alert('Esta imagem é muito pesada para salvar no navegador do celular. Escolha uma menor.');
       }
     };
     reader.readAsDataURL(file);
@@ -89,13 +92,13 @@ btnResetWallpaper.addEventListener('click', () => {
   localStorage.removeItem('app-wallpaper');
 });
 
-// --- CARREGAR PASTA DE MÚSICAS MANUALMENTE ---
+// --- CARREGAR MÚSICAS (Compatível com PC e Android) ---
 folderInput.addEventListener('change', (event) => {
   const files = Array.from(event.target.files);
-  const audioFiles = files.filter(file => file.type.startsWith('audio/'));
+  const audioFiles = files.filter(file => file.type.startsWith('audio/') || file.name.endsWith('.mp3') || file.name.endsWith('.m4a'));
 
   if (audioFiles.length === 0) {
-    songListElement.innerHTML = '<li class="empty-msg">Nenhum áudio encontrado.</li>';
+    songListElement.innerHTML = '<li class="empty-msg">Nenhum áudio compatível encontrado.</li>';
     return;
   }
 
@@ -203,7 +206,7 @@ btnPlay.addEventListener('click', () => {
 btnNext.addEventListener('click', () => {
   if (songs.length === 0) return;
   const nextIndex = (currentSongIndex + 1) % songs.length;
-  loadAndPaySong(nextIndex); // Corrigido para loadAndPlaySong
+  loadAndPlaySong(nextIndex);
 });
 
 btnPrev.addEventListener('click', () => {
