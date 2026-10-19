@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>jotaplayer</title>
+  <title>JotaPlayer</title>
   <!-- Biblioteca para ler metadados das músicas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
   <style>
@@ -312,7 +312,7 @@
       <!-- ABA PLAYER -->
       <div id="player" class="tab-pane player-screen active">
         <div class="cover-art" id="cover-art">
-          <span class="cover-placeholder">🎵</span>
+          <span class="cover-placeholder">♫</span>
         </div>
         <div class="song-details">
           <h2 id="player-title">Nenhuma música</h2>
@@ -326,12 +326,12 @@
           </div>
         </div>
         <div class="controls">
-          <button id="btn-prev">⏮</button>
-          <button id="btn-play" class="play-btn">▶</button>
-          <button id="btn-next">⏭</button>
+          <button id="btn-prev">|&lt;</button>
+          <button id="btn-play" class="play-btn">&gt;</button>
+          <button id="btn-next">&gt;|</button>
         </div>
         <div class="volume-container">
-          <span>🔊</span>
+          <span>Vol</span>
           <input type="range" id="volume-bar" value="100" min="0" max="100">
         </div>
       </div>
@@ -339,8 +339,7 @@
       <!-- ABA BIBLIOTECA -->
       <div id="library" class="tab-pane library-screen">
         <h2>Biblioteca de Músicas</h2>
-        <label for="folder-input" class="upload-btn-label">📁 Adicionar Músicas / Pasta</label>
-        <!-- Compatível com PC e Android (permite múltiplos arquivos) -->
+        <label for="folder-input" class="upload-btn-label">Adicionar Músicas / Pasta</label>
         <input type="file" id="folder-input" multiple accept="audio/*">
         
         <ul id="song-list" class="song-list">
@@ -354,18 +353,18 @@
         
         <div class="setting-group">
           <label>Tema da Interface</label>
-          <button id="btn-theme-toggle" class="setting-btn">☀️ Mudar para Claro</button>
+          <button id="btn-theme-toggle" class="setting-btn">Mudar Tema</button>
         </div>
 
         <div class="setting-group">
           <label>Papel de Parede Personalizado</label>
-          <label for="wallpaper-input" class="setting-btn" style="display: block; box-sizing: border-box;">🖼️ Escolher Wallpaper</label>
+          <label for="wallpaper-input" class="setting-btn" style="display: block; box-sizing: border-box;">Escolher Wallpaper</label>
           <input type="file" id="wallpaper-input" accept="image/*" style="display: none;">
         </div>
 
         <div class="setting-group">
           <label>Restaurar Padrão</label>
-          <button id="btn-reset-wallpaper" class="setting-btn">🔄 Wallpaper Padrão</button>
+          <button id="btn-reset-wallpaper" class="setting-btn">Wallpaper Padrão</button>
         </div>
       </div>
 
@@ -373,9 +372,9 @@
 
     <!-- NAVEGAÇÃO INFERIOR -->
     <div class="nav-bar">
-      <button class="tab-btn active" data-tab="player">🎵 <span>Player</span></button>
-      <button class="tab-btn" data-tab="library">📚 <span>Biblioteca</span></button>
-      <button class="tab-btn" data-tab="settings">⚙️ <span>Ajustes</span></button>
+      <button class="tab-btn active" data-tab="player">Player</button>
+      <button class="tab-btn" data-tab="library">Biblioteca</button>
+      <button class="tab-btn" data-tab="settings">Ajustes</button>
     </div>
   </div>
 
@@ -414,7 +413,7 @@
       if (savedTheme === 'light') {
         document.body.classList.remove('dark-theme');
         document.body.classList.add('light-theme');
-        btnThemeToggle.textContent = '🌙 Mudar para Escuro';
+        btnThemeToggle.textContent = 'Mudar Tema';
       }
 
       const savedWallpaper = localStorage.getItem('app-wallpaper');
@@ -439,12 +438,12 @@
       if (document.body.classList.contains('dark-theme')) {
         document.body.classList.remove('dark-theme');
         document.body.classList.add('light-theme');
-        btnThemeToggle.textContent = '🌙 Mudar para Escuro';
+        btnThemeToggle.textContent = 'Mudar Tema';
         localStorage.setItem('app-theme', 'light');
       } else {
         document.body.classList.remove('light-theme');
         document.body.classList.add('dark-theme');
-        btnThemeToggle.textContent = '☀️ Mudar para Claro';
+        btnThemeToggle.textContent = 'Mudar Tema';
         localStorage.setItem('app-theme', 'dark');
       }
     });
@@ -551,7 +550,7 @@
         coverArt.innerHTML = '';
       } else {
         coverArt.style.backgroundImage = 'none';
-        coverArt.innerHTML = '<span class="cover-placeholder">🎵</span>';
+        coverArt.innerHTML = '<span class="cover-placeholder">♫</span>';
       }
 
       const items = songListElement.querySelectorAll('.song-item');
@@ -561,7 +560,7 @@
 
       audioPlayer.src = song.url;
       audioPlayer.play();
-      btnPlay.textContent = '⏸';
+      btnPlay.textContent = '||';
       glassContainer.classList.add('playing');
     }
 
@@ -573,11 +572,11 @@
 
       if (audioPlayer.paused) {
         audioPlayer.play();
-        btnPlay.textContent = '⏸';
+        btnPlay.textContent = '||';
         glassContainer.classList.add('playing');
       } else {
         audioPlayer.pause();
-        btnPlay.textContent = '▶';
+        btnPlay.textContent = '>';
         glassContainer.classList.remove('playing');
       }
     });
