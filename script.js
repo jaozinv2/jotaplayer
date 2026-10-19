@@ -1,6 +1,5 @@
 const tabBtns = document.querySelectorAll('.tab-btn');
 const tabPanes = document.querySelectorAll('.tab-pane');
-const folderInput = document.getElementById('folder-input');
 const songListElement = document.getElementById('song-list');
 const audioPlayer = document.getElementById('audio-player');
 
@@ -20,115 +19,19 @@ const btnThemeToggle = document.getElementById('btn-theme-toggle');
 const wallpaperInput = document.getElementById('wallpaper-input');
 const btnResetWallpaper = document.getElementById('btn-reset-wallpaper');
 
-const jsMediatags = window.jsmediatags;
 let songs = [];
 let currentSongIndex = -1;
 
-// --- CONFIGURAÇÃO DO INDEXEDDB ---
-let db;
-const dbName = "MusicPlayerDB";
-const storeName = "songs";
-
-function initDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(dbName, 1);
-    
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => {
-      db = request.result;
-      resolve(db);
-    };
-    
-    request.onupgradeneeded = (event) => {
-      const database = event.target.result;
-      if (!database.objectStoreNames.contains(storeName)) {
-        database.createObjectStore(storeName, { keyPath: "id", autoIncrement: true });
-      }
-    };
-  });
-}
-
-// Extrai metadados do arquivo em forma de Promise
-function readMetadata(file) {
-  return new Promise((resolve) => {
-    if (!jsMediatags) {
-      resolve({
-        title: file.name.replace(/\.[^/.]+$/, ""),
-        artist: "Artista Desconhecido",
-        pictureUrl: null
-      });
-      return;
-    }
-
-    jsMediatags.read(file, {
-      onSuccess: function(tag) {
-        const title = tag.tags.title || file.name.replace(/\.[^/.]+$/, "");
-        const artist = tag.tags.artist || "Artista Desconhecido";
-        
-        let pictureUrl = null;
-        if (tag.tags.picture) {
-          const { data, format } = tag.tags.picture;
-          let base64String = "";
-          for (let i = 0; i < data.length; i++) {
-            base64String += String.fromCharCode(data[i]);
-          }
-          pictureUrl = `data:${format};base64,${btoa(base64String)}`;
-        }
-
-        resolve({ title, artist, pictureUrl });
-      },
-      onError: function() {
-        resolve({
-          title: file.name.replace(/\.[^/.]+$/, ""),
-          artist: "Artista Desconhecido",
-          pictureUrl: null
-        });
-      }
-    });
-  });
-}
-
-// Salvar músicas processadas no IndexedDB
-function saveSongsToDB(parsedSongs) {
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, "readwrite");
-    const store = transaction.objectStore(storeName);
-    
-    // Limpa a base anterior antes de salvar a nova lista
-    store.clear();
-
-    parsedSongs.forEach(item => {
-      store.add({
-        file: item.file,
-        title: item.title,
-        artist: item.artist,
-        pictureUrl: item.pictureUrl
-      });
-    });
-
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
-}
-
-// Carregar músicas salvas do IndexedDB
-function loadSongsFromDB() {
-  return new Promise((resolve) => {
-    if (!db) return resolve([]);
-    const transaction = db.transaction(storeName, "readonly");
-    const store = transaction.objectStore(storeName);
-    const request = store.getAll();
-
-    request.onsuccess = () => {
-      resolve(request.result);
-    };
-    request.onerror = () => resolve([]);
-  });
-}
+// --- LISTA DE MÚSICAS PREDEFINIDAS NA PASTA SONGS ---
+// Substitua pelos nomes exatos dos seus arquivos .mp3 e títulos/artistas reais
+const predefinedSongs = [
+  { title: "Nome da Música 1", artist: "Artista 1", file: "songs/musica1.mp3" },
+  { title: "Nome da Música 2", artist: "Artista 2", file: "songs/musica2.mp3" }
+];
 
 // --- INICIALIZAÇÃO AO ABRIR A PÁGINA ---
-document.addEventListener('DOMContentLoaded', async () => {
-  // 1. Carregar Tema
+document.addEventListener('DOMContentLoaded', () => {
+  // 1. Carregar Tema Salvo
   const savedTheme = localStorage.getItem('app-theme');
   if (savedTheme === 'light') {
     document.body.classList.remove('dark-theme');
@@ -136,29 +39,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnThemeToggle.textContent = '🌙 Mudar para Escuro';
   }
 
-  // 2. Carregar Wallpaper
+  // 2. Carregar Wallpaper Salvo
   const savedWallpaper = localStorage.getItem('app-wallpaper');
   if (savedWallpaper) {
     document.body.style.backgroundImage = `url('${savedWallpaper}')`;
   }
 
-  // 3. Inicializar Banco de Dados e Restaurar Músicas
-  try {
-    await initDB();
-    const savedSongs = await loadSongsFromDB();
-    if (savedSongs.length > 0) {
-      songListElement.innerHTML = '';
-      songs = [];
-      savedSongs.forEach((item) => {
-        addSongToList(item.file, item.title, item.artist, item.pictureUrl);
-      });
-    }
-  } catch (err) {
-    console.error("Erro ao carregar banco de dados:", err);
-  }
+  // 3. Carregar as músicas predefinidas automaticamente
+  loadPredefinedSongs();
 });
 
-// --- NAVEGAÇÃO DE ABAS ---
+function loadPredefinedSongs() {
+  songListElement.innerHTML = '';
+  songs = [];
+
+  if (predefinedSongs.length === 0) {
+    songListElement.innerHTML = '<li class="empty-msg">Nenhuma música predefinida.</li>';
+    return;
+  }
+
+  predefinedSongs.forEach((item, index) => {
+    const songObj = {
+      title: item.title,
+      artist: item.artist,
+      pictureUrl: null,
+      url: item.file
+    };
+    songs.push(songObj);
+
+    const li = document.createElement('li');
+    li.className = 'song-item';
+    li.innerHTML = `
+      <div class="song-info">
+        <span class="title">${item.title}</span>
+        <span class="artist">${item.artist}</span>
+      </div>
+    `;
+
+    li.addEventListener('click', () => {
+      loadAndPlaySong(index);
+    });
+
+    songListElement.appendChild(li);
+  });
+}
+
+// --- SISTEMA DE ABAS ---
 tabBtns.forEach(btn => {
   btn.addEventListener('click', () => {
     tabBtns.forEach(b => b.classList.remove('active'));
@@ -169,7 +95,7 @@ tabBtns.forEach(btn => {
   });
 });
 
-// --- AJUSTES: TEMA & WALLPAPER ---
+// --- CONFIGURAÇÕES: TEMA & WALLPAPER ---
 btnThemeToggle.addEventListener('click', () => {
   if (document.body.classList.contains('dark-theme')) {
     document.body.classList.remove('dark-theme');
@@ -194,7 +120,7 @@ wallpaperInput.addEventListener('change', (event) => {
       try {
         localStorage.setItem('app-wallpaper', base64Image);
       } catch (err) {
-        console.warn('Imagem muito grande para guardar no localStorage.');
+        console.warn('Imagem muito grande.');
       }
     };
     reader.readAsDataURL(file);
@@ -206,63 +132,7 @@ btnResetWallpaper.addEventListener('click', () => {
   localStorage.removeItem('app-wallpaper');
 });
 
-// --- CARREGAR PASTA DE MÚSICAS ---
-folderInput.addEventListener('change', async (event) => {
-  const files = Array.from(event.target.files);
-  const audioFiles = files.filter(file => file.type.startsWith('audio/'));
-
-  if (audioFiles.length === 0) {
-    songListElement.innerHTML = '<li class="empty-msg">Nenhum áudio encontrado.</li>';
-    return;
-  }
-
-  songListElement.innerHTML = '<li class="empty-msg">A carregar e guardar músicas...</li>';
-  songs = [];
-
-  // Extrai metadados de todos os arquivos primeiro
-  const parsedSongs = [];
-  for (const file of audioFiles) {
-    const meta = await readMetadata(file);
-    parsedSongs.push({
-      file,
-      title: meta.title,
-      artist: meta.artist,
-      pictureUrl: meta.pictureUrl
-    });
-  }
-
-  // Guarda no IndexedDB após o processamento completo
-  await saveSongsToDB(parsedSongs);
-
-  // Exibe as músicas salvas na interface
-  songListElement.innerHTML = '';
-  parsedSongs.forEach((item) => {
-    addSongToList(item.file, item.title, item.artist, item.pictureUrl);
-  });
-});
-
-function addSongToList(file, title, artist, pictureUrl) {
-  const index = songs.length;
-  const songObj = { file, title, artist, pictureUrl, url: URL.createObjectURL(file) };
-  songs.push(songObj);
-
-  const li = document.createElement('li');
-  li.className = 'song-item';
-  li.innerHTML = `
-    <div class="song-info">
-      <span class="title">${title}</span>
-      <span class="artist">${artist}</span>
-    </div>
-  `;
-
-  li.addEventListener('click', () => {
-    loadAndPlaySong(index);
-  });
-
-  songListElement.appendChild(li);
-}
-
-// --- CONTROLES DO PLAYER ---
+// --- CONTROLES DE ÁUDIO ---
 function loadAndPlaySong(index) {
   if (index < 0 || index >= songs.length) return;
 
@@ -272,13 +142,8 @@ function loadAndPlaySong(index) {
   playerTitle.textContent = song.title;
   playerArtist.textContent = song.artist;
 
-  if (song.pictureUrl) {
-    coverArt.style.backgroundImage = `url(${song.pictureUrl})`;
-    coverArt.innerHTML = '';
-  } else {
-    coverArt.style.backgroundImage = 'none';
-    coverArt.innerHTML = '<span class="cover-placeholder">🎵</span>';
-  }
+  coverArt.style.backgroundImage = 'none';
+  coverArt.innerHTML = '<span class="cover-placeholder">🎵</span>';
 
   const items = songListElement.querySelectorAll('.song-item');
   items.forEach((item, i) => {
@@ -315,7 +180,7 @@ btnNext.addEventListener('click', () => {
 });
 
 btnPrev.addEventListener('click', () => {
-  if (songs.length === 0) return;
+  if (songs.length ===0) return;
   const prevIndex = (currentSongIndex - 1 + songs.length) % songs.length;
   loadAndPlaySong(prevIndex);
 });
