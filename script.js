@@ -22,13 +22,6 @@ const btnResetWallpaper = document.getElementById('btn-reset-wallpaper');
 let songs = [];
 let currentSongIndex = -1;
 
-// --- LISTA DE MÚSICAS PREDEFINIDAS NA PASTA SONGS ---
-// Substitua pelos nomes exatos dos seus arquivos .mp3 e títulos/artistas reais
-const predefinedSongs = [
-  { title: "Nome da Música 1", artist: "Artista 1", file: "songs/musica1.mp3" },
-  { title: "Nome da Música 2", artist: "Artista 2", file: "songs/musica2.mp3" }
-];
-
 // --- INICIALIZAÇÃO AO ABRIR A PÁGINA ---
 document.addEventListener('DOMContentLoaded', () => {
   // 1. Carregar Tema Salvo
@@ -45,43 +38,51 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.style.backgroundImage = `url('${savedWallpaper}')`;
   }
 
-  // 3. Carregar as músicas predefinidas automaticamente
-  loadPredefinedSongs();
+  // 3. Carregar as músicas automaticamente do playlist.json
+  loadPlaylistFromJson();
 });
 
-function loadPredefinedSongs() {
-  songListElement.innerHTML = '';
-  songs = [];
+function loadPlaylistFromJson() {
+  songListElement.innerHTML = '<li class="empty-msg">Carregando músicas...</li>';
 
-  if (predefinedSongs.length === 0) {
-    songListElement.innerHTML = '<li class="empty-msg">Nenhuma música predefinida.</li>';
-    return;
-  }
+  fetch('playlist.json')
+    .then(response => {
+      if (!response.ok) throw new Error("Erro ao carregar o arquivo playlist.json");
+      return response.json();
+    })
+    .then(data => {
+      songListElement.innerHTML = '';
+      songs = [];
 
-  predefinedSongs.forEach((item, index) => {
-    const songObj = {
-      title: item.title,
-      artist: item.artist,
-      pictureUrl: null,
-      url: item.file
-    };
-    songs.push(songObj);
+      data.forEach((item, index) => {
+        const songObj = {
+          title: item.title,
+          artist: item.artist,
+          pictureUrl: null,
+          url: item.file
+        };
+        songs.push(songObj);
 
-    const li = document.createElement('li');
-    li.className = 'song-item';
-    li.innerHTML = `
-      <div class="song-info">
-        <span class="title">${item.title}</span>
-        <span class="artist">${item.artist}</span>
-      </div>
-    `;
+        const li = document.createElement('li');
+        li.className = 'song-item';
+        li.innerHTML = `
+          <div class="song-info">
+            <span class="title">${item.title}</span>
+            <span class="artist">${item.artist}</span>
+          </div>
+        `;
 
-    li.addEventListener('click', () => {
-      loadAndPlaySong(index);
+        li.addEventListener('click', () => {
+          loadAndPlaySong(index);
+        });
+
+        songListElement.appendChild(li);
+      });
+    })
+    .catch(err => {
+      console.error(err);
+      songListElement.innerHTML = '<li class="empty-msg">Erro ao carregar a playlist.</li>';
     });
-
-    songListElement.appendChild(li);
-  });
 }
 
 // --- SISTEMA DE ABAS ---
@@ -180,7 +181,7 @@ btnNext.addEventListener('click', () => {
 });
 
 btnPrev.addEventListener('click', () => {
-  if (songs.length ===0) return;
+  if (songs.length === 0) return;
   const prevIndex = (currentSongIndex - 1 + songs.length) % songs.length;
   loadAndPlaySong(prevIndex);
 });
