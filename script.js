@@ -240,4 +240,46 @@ function formatTime(seconds) {
   const min = Math.floor(seconds / 60);
   const sec = Math.floor(seconds % 60);
   return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+  // --- ATALHOS DE TECLADO ---
+document.addEventListener('keydown', (event) => {
+  // Ignora se o usuário estiver focado em algum campo de input
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+  const tabs = Array.from(tabBtns);
+  const activeTabIndex = tabs.findIndex(btn => btn.classList.contains('active'));
+
+  switch (event.key.toLowerCase()) {
+    case 'q':
+      // Aba anterior (cíclica)
+      const prevTab = (activeTabIndex - 1 + tabs.length) % tabs.length;
+      tabs[prevTab].click();
+      break;
+
+    case 'e':
+      // Próxima aba (cíclica)
+      const nextTab = (activeTabIndex + 1) % tabs.length;
+      tabs[nextTab].click();
+      break;
+
+    case 'arrowleft':
+    case 'arrowup':
+      // Música anterior
+      event.preventDefault();
+      btnPrev.click();
+      break;
+
+    case 'arrowright':
+    case 'arrowdown':
+      // Próxima música
+      event.preventDefault();
+      btnNext.click();
+      break;
+
+    case ' ':
+      // Play / Pause com Barra de Espaço
+      event.preventDefault();
+      btnPlay.click();
+      break;
+  }
+});
 }
