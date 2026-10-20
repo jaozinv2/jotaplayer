@@ -93,8 +93,9 @@ wallpaperInput.addEventListener('change', (event) => {
 });
 
 btnResetWallpaper.addEventListener('click', () => {
-  document.body.style.backgroundImage = "url('background.jpg')";
+  document.body.style.backgroundImage = 'none';
   localStorage.removeItem('app-wallpaper');
+});
 });
 
 // --- CARREGAR PASTA DE MÚSICAS ---
