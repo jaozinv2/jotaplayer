@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JotaPlayer🎵</title>
   
-  <!-- Linhas obrigatórias para o PWA / PWABuilder -->
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#121212">
 
@@ -66,14 +65,14 @@
         <header class="library-header">
           <h3>Sua Coleção</h3>
           <label for="folder-input" class="file-btn">
-            <span>📁 Carregar Músicas</span>
-            <input type="file" id="folder-input" webkitdirectory directory multiple accept="audio/*">
+            <span>📁 Adicionar Músicas</span>
+            <input type="file" id="folder-input" multiple accept="audio/*">
           </label>
         </header>
 
         <div class="song-list-container">
           <ul id="song-list" class="song-list">
-            <li class="empty-msg">Nenhuma música carregada. Clique em "Carregar Pasta" para adicionar suas faixas.</li>
+            <li class="empty-msg">Nenhuma música carregada. Clique em "Adicionar Músicas" para selecionar suas faixas.</li>
           </ul>
         </div>
       </section>
@@ -112,14 +111,14 @@
   </div>
 
   <script src="script.js"></script>
- <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/jotaplayer/sw.js', { scope: '/jotaplayer/' })
-        .then((reg) => console.log('Service Worker registrado:', reg.scope))
-        .catch((err) => console.log('Erro no Service Worker:', err));
-    });
-  }
-</script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/jotaplayer/sw.js', { scope: '/jotaplayer/' })
+          .then((reg) => console.log('Service Worker registrado:', reg.scope))
+          .catch((err) => console.log('Erro no Service Worker:', err));
+      });
+    }
+  </script>
 </body>
 </html>
