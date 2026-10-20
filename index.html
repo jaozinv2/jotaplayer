@@ -107,10 +107,10 @@
   </div>
 
   <script src="script.js"></script>
-  <script>
+ <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js', { scope: './' })
+      navigator.serviceWorker.register('/jotaplayer/sw.js', { scope: '/jotaplayer/' })
         .then((reg) => console.log('Service Worker registrado:', reg.scope))
         .catch((err) => console.log('Erro no Service Worker:', err));
     });
