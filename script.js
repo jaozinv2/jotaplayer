@@ -243,7 +243,7 @@ function formatTime(seconds) {
 }
 
 // --- ATALHOS DE TECLADO ---
-document.addEventListener('keydown', (event) => {
+window.addEventListener('keydown', (event) => {
   if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
 
   const tabs = Array.from(tabBtns);
