@@ -28,7 +28,7 @@ body {
   justify-content: center;
   align-items: center;
   background-image: url('background.jpg');
-  background-color: #121212; /* Fundo padrão escuro caso não haja imagem */
+  background-color: #121212;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -37,13 +37,12 @@ body {
   transition: background-color 0.3s ease, background-image 0.3s ease;
 }
 
-/* Glassmorphism Container Base */
 .glass-container {
   width: 100%;
   max-width: 440px;
   height: 640px;
   display: flex;
-  flex-direction: column-reverse; /* Navegação embaixo */
+  flex-direction: column-reverse;
   padding: 24px;
   border-radius: 28px;
   backdrop-filter: blur(20px);
@@ -52,7 +51,6 @@ body {
   transition: background 0.3s ease, border 0.3s ease, color 0.3s ease;
 }
 
-/* Variação de Temas */
 body.dark-theme .glass-container {
   background: var(--bg-container-dark);
   border: 1px solid var(--border-dark);
@@ -65,7 +63,6 @@ body.light-theme .glass-container {
   color: var(--text-light);
 }
 
-/* Navegação por Abas (Inferior) */
 .nav-tabs {
   display: flex;
   background: var(--nav-bg-dark);
@@ -104,7 +101,6 @@ body.light-theme .tab-btn.active {
   background: rgba(0, 0, 0, 0.12);
 }
 
-/* Áreas de Conteúdo das Abas */
 .tab-content {
   flex: 1;
   position: relative;
@@ -121,7 +117,6 @@ body.light-theme .tab-btn.active {
   display: flex;
 }
 
-/* --- ABA TOCADOR --- */
 .player-view {
   display: flex;
   flex-direction: column;
@@ -232,7 +227,6 @@ body.light-theme .tab-btn.active {
   transform: scale(1.08);
 }
 
-/* Botão de Play/Pause Corrigido */
 .play-btn {
   width: 56px;
   height: 56px;
@@ -243,12 +237,12 @@ body.light-theme .tab-btn.active {
 
 body.dark-theme .play-btn {
   background: #ffffff;
-  color: #000000; /* Ícone preto no tema escuro */
+  color: #000000;
 }
 
 body.light-theme .play-btn {
   background: #1e1e1e;
-  color: #ffffff; /* Ícone branco no tema claro */
+  color: #ffffff;
 }
 
 .volume-section {
@@ -260,12 +254,11 @@ body.light-theme .play-btn {
   opacity: 0.8;
 }
 
-/* --- ABA BIBLIOTECA & CONFIGURAÇÕES --- */
 .library-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .library-header h3 {
@@ -290,6 +283,36 @@ body.light-theme .play-btn {
 
 .file-btn input, .setting-action-btn input {
   display: none;
+}
+
+.search-box {
+  margin-bottom: 12px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--item-bg-dark);
+  border: 1px solid rgba(150, 150, 150, 0.1);
+  border-radius: 12px;
+  color: inherit;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+body.light-theme .search-box input {
+  background: var(--item-bg-light);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.search-box input:focus {
+  border-color: currentColor;
+}
+
+.search-box input::placeholder {
+  color: inherit;
+  opacity: 0.5;
 }
 
 .song-list-container {
@@ -365,7 +388,6 @@ body.light-theme .song-item {
   padding: 30px 10px;
 }
 
-/* Configurações */
 .settings-content {
   display: flex;
   flex-direction: column;
