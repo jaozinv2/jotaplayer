@@ -37,7 +37,7 @@ const btnResetWallpaper = document.getElementById('btn-reset-wallpaper');
 
 const jsMediatags = window.jsmediatags;
 let songs = [];
-let queue = []; // Lista de índices das faixas na fila de espera
+let queue = []; 
 let currentSongIndex = -1;
 
 let isShuffle = false;
@@ -240,10 +240,27 @@ function updateLibraryStats() {
   libraryStats.textContent = `${count} ${count === 1 ? 'música' : 'músicas'} (${formatTime(totalSec)})`;
 }
 
+// Extrai e separa os nomes individuais de artistas
 function updateArtistDropdown() {
-  const artists = [...new Set(songs.map(s => s.artist))].sort();
+  const artistSet = new Set();
+
+  songs.forEach(song => {
+    if (song.artist && song.artist !== "Artista Desconhecido") {
+      // Separa por vírgulas, barras, &, feat. ou ft.
+      const individualArtists = song.artist.split(/[,/\\&]|feat\.|ft\./i);
+      individualArtists.forEach(name => {
+        const cleanName = name.trim();
+        if (cleanName.length > 0) {
+          artistSet.add(cleanName);
+        }
+      });
+    }
+  });
+
+  const sortedArtists = Array.from(artistSet).sort((a, b) => a.localeCompare(b));
   artistSelect.innerHTML = '<option value="">Todos os Artistas</option>';
-  artists.forEach(artist => {
+  
+  sortedArtists.forEach(artist => {
     const opt = document.createElement('option');
     opt.value = artist;
     opt.textContent = artist;
@@ -254,13 +271,18 @@ function updateArtistDropdown() {
 // Renderizar Lista
 function renderSongList() {
   const query = searchInput.value.toLowerCase().trim();
-  const selectedArtist = artistSelect.value;
+  const selectedArtist = artistSelect.value.toLowerCase().trim();
   songListElement.innerHTML = '';
 
   const filteredSongs = songs.map((song, originalIndex) => ({ song, originalIndex })).filter(({ song }) => {
     const matchesSearch = song.title.toLowerCase().includes(query) || song.artist.toLowerCase().includes(query);
     const matchesFav = isFavFilterActive ? song.favorite : true;
-    const matchesArtist = selectedArtist ? song.artist === selectedArtist : true;
+    
+    // Verifica se o artista selecionado faz parte do campo do artista da música
+    const matchesArtist = selectedArtist 
+      ? song.artist.toLowerCase().includes(selectedArtist) 
+      : true;
+
     return matchesSearch && matchesFav && matchesArtist;
   });
 
@@ -432,14 +454,12 @@ btnPlay.addEventListener('click', () => {
 });
 
 function getNextIndex() {
-  // Prioridade 1: Fila de Espera
   if (queue.length > 0) {
     const nextIdx = queue.shift();
     renderQueue();
     return nextIdx;
   }
 
-  // Prioridade 2: Modo Aleatório
   if (isShuffle) {
     let rand = Math.floor(Math.random() * songs.length);
     if (rand === currentSongIndex && songs.length > 1) {
@@ -448,7 +468,6 @@ function getNextIndex() {
     return rand;
   }
 
-  // Prioridade 3: Sequência Padrão
   return (currentSongIndex + 1) % songs.length;
 }
 
