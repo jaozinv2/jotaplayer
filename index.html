@@ -66,14 +66,14 @@
         <header class="library-header">
           <h3>Sua Coleção</h3>
           <label for="folder-input" class="file-btn">
-            <span>📁 Adicionar Músicas</span>
-            <input type="file" id="folder-input" multiple accept="audio/*">
+            <span>📁 Carregar Músicas</span>
+            <input type="file" id="folder-input" webkitdirectory directory multiple accept="audio/*">
           </label>
         </header>
 
         <div class="song-list-container">
           <ul id="song-list" class="song-list">
-            <li class="empty-msg">Nenhuma música carregada. Clique em "Adicionar Músicas" para selecionar suas faixas.</li>
+            <li class="empty-msg">Nenhuma música carregada. Clique em "Carregar Pasta" para adicionar suas faixas.</li>
           </ul>
         </div>
       </section>
@@ -103,34 +103,23 @@
           <div class="setting-item reset-wp">
             <button id="btn-reset-wallpaper" class="setting-action-btn secondary">Restaurar Wallpaper Original</button>
           </div>
-
-          <!-- Configuração de Crossfade -->
-          <div class="setting-item">
-            <span>Crossfade (Segundos)</span>
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <span id="crossfade-value">0s</span>
-              <input type="range" id="crossfade-range" min="0" max="10" value="0" step="1" style="width: 100px;">
-            </div>
-          </div>
         </div>
       </section>
 
     </div>
 
-    <!-- Dois elementos de áudio para permitir a transição cruzada (crossfade) -->
-    <audio id="audio-player-1"></audio>
-    <audio id="audio-player-2"></audio>
+    <audio id="audio-player"></audio>
   </div>
 
   <script src="script.js"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/jotaplayer/sw.js', { scope: '/jotaplayer/' })
-          .then((reg) => console.log('Service Worker registrado:', reg.scope))
-          .catch((err) => console.log('Erro no Service Worker:', err));
-      });
-    }
-  </script>
+ <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/jotaplayer/sw.js', { scope: '/jotaplayer/' })
+        .then((reg) => console.log('Service Worker registrado:', reg.scope))
+        .catch((err) => console.log('Erro no Service Worker:', err));
+    });
+  }
+</script>
 </body>
 </html>
