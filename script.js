@@ -249,30 +249,28 @@ document.addEventListener('keydown', (event) => {
   const tabs = Array.from(tabBtns);
   const activeTabIndex = tabs.findIndex(btn => btn.classList.contains('active'));
 
-  switch (event.key.toLowerCase()) {
-    case 'q':
+  switch (event.code) {
+    case 'KeyQ': {
       const prevTab = (activeTabIndex - 1 + tabs.length) % tabs.length;
       tabs[prevTab].click();
       break;
-
-    case 'e':
+    }
+    case 'KeyE': {
       const nextTab = (activeTabIndex + 1) % tabs.length;
       tabs[nextTab].click();
       break;
-
-    case 'arrowleft':
-    case 'arrowup':
+    }
+    case 'ArrowLeft':
+    case 'ArrowUp':
       event.preventDefault();
       btnPrev.click();
       break;
-
-    case 'arrowright':
-    case 'arrowdown':
+    case 'ArrowRight':
+    case 'ArrowDown':
       event.preventDefault();
       btnNext.click();
       break;
-
-    case ' ':
+    case 'Space':
       event.preventDefault();
       btnPlay.click();
       break;
