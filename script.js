@@ -25,7 +25,7 @@ const currentTimeEl = document.getElementById('current-time');
 const durationTimeEl = document.getElementById('duration-time');
 const glassContainer = document.querySelector('.glass-container');
 
-// Elementos da Fila de Espera
+// Elementos da Fila
 const queueSection = document.getElementById('queue-section');
 const queueListElement = document.getElementById('queue-list');
 const queueCountEl = document.getElementById('queue-count');
@@ -37,17 +37,80 @@ const btnResetWallpaper = document.getElementById('btn-reset-wallpaper');
 
 const jsMediatags = window.jsmediatags;
 let songs = [];
-let queue = []; 
+let queue = [];
 let currentSongIndex = -1;
 
 let isShuffle = false;
-let loopMode = 0; // 0: Off, 1: Loop All, 2: Loop One
+let loopMode = 0;
 let isFavFilterActive = false;
 let isMuted = false;
 let previousVolume = 1;
 
-// Carregar preferências
-document.addEventListener('DOMContentLoaded', () => {
+// --- ESTRUTURA DO INDEXEDDB ---
+const DB_NAME = 'JotaPlayerDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'songs';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function saveSongToDB(songData) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.add(songData);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function getAllSongsFromDB() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function updateSongInDB(songData) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.put(songData);
+    req.onsuccess = () => resolve();
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function clearSongsFromDB() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.clear();
+    req.onsuccess = () => resolve();
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+// INICIALIZAÇÃO E CARREGAMENTO
+document.addEventListener('DOMContentLoaded', async () => {
   const savedTheme = localStorage.getItem('app-theme');
   if (savedTheme === 'light') {
     document.body.classList.remove('dark-theme');
@@ -71,9 +134,26 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   setupMediaSession();
+  await loadSavedSongs();
 });
 
-// Suporte à Media Session API (Notificações e Fone de Ouvido)
+async function loadSavedSongs() {
+  try {
+    const dbSongs = await getAllSongsFromDB();
+    if (dbSongs && dbSongs.length > 0) {
+      songs = dbSongs.map(item => ({
+        ...item,
+        url: URL.createObjectURL(item.fileBlob)
+      }));
+      updateArtistDropdown();
+      renderSongList();
+      updateLibraryStats();
+    }
+  } catch (err) {
+    console.error('Erro ao carregar músicas do banco local:', err);
+  }
+}
+
 function setupMediaSession() {
   if ('mediaSession' in navigator) {
     navigator.mediaSession.setActionHandler('play', () => btnPlay.click());
@@ -105,7 +185,7 @@ tabBtns.forEach(btn => {
   });
 });
 
-// Configurações
+// Ajustes e Configurações
 btnThemeToggle.addEventListener('click', () => {
   if (document.body.classList.contains('dark-theme')) {
     document.body.classList.remove('dark-theme');
@@ -148,7 +228,6 @@ btnResetWallpaper.addEventListener('click', () => {
   localStorage.removeItem('app-wallpaper');
 });
 
-// Exportar Favoritos
 btnExportFavs.addEventListener('click', () => {
   const favs = songs.filter(s => s.favorite);
   if (favs.length === 0) {
@@ -170,21 +249,22 @@ btnExportFavs.addEventListener('click', () => {
   URL.revokeObjectURL(url);
 });
 
-// Carregar Arquivos
-folderInput.addEventListener('change', (event) => {
+// Importação e salvamento de novos arquivos
+folderInput.addEventListener('change', async (event) => {
   const files = Array.from(event.target.files);
   const audioFiles = files.filter(file => file.type.startsWith('audio/'));
 
   if (audioFiles.length === 0) return;
 
+  await clearSongsFromDB();
   songs = [];
   queue = [];
   renderQueue();
 
   let loadedCount = 0;
-  audioFiles.forEach((file) => {
+  for (const file of audioFiles) {
     jsMediatags.read(file, {
-      onSuccess: function(tag) {
+      onSuccess: async function(tag) {
         const title = tag.tags.title || file.name.replace(/\.[^/.]+$/, "");
         const artist = tag.tags.artist || "Artista Desconhecido";
         
@@ -198,40 +278,58 @@ folderInput.addEventListener('change', (event) => {
           pictureUrl = `data:${format};base64,${btoa(base64String)}`;
         }
 
-        const songObj = { file, title, artist, pictureUrl, url: URL.createObjectURL(file), favorite: false, duration: 0 };
+        const tempAudio = new Audio(URL.createObjectURL(file));
+        tempAudio.addEventListener('loadedmetadata', async () => {
+          const songObj = {
+            fileBlob: file,
+            title,
+            artist,
+            pictureUrl,
+            favorite: false,
+            duration: tempAudio.duration
+          };
 
-        const tempAudio = new Audio(songObj.url);
-        tempAudio.addEventListener('loadedmetadata', () => {
-          songObj.duration = tempAudio.duration;
-          updateLibraryStats();
+          const id = await saveSongToDB(songObj);
+          songObj.id = id;
+          songObj.url = URL.createObjectURL(file);
+
+          songs.push(songObj);
+          loadedCount++;
+          if (loadedCount === audioFiles.length) {
+            updateArtistDropdown();
+            renderSongList();
+            updateLibraryStats();
+          }
         });
-
-        songs.push(songObj);
-        loadedCount++;
-        if (loadedCount === audioFiles.length) {
-          updateArtistDropdown();
-          renderSongList();
-        }
       },
-      onError: function() {
+      onError: async function() {
         const title = file.name.replace(/\.[^/.]+$/, "");
-        const songObj = { file, title, artist: "Artista Desconhecido", pictureUrl: null, url: URL.createObjectURL(file), favorite: false, duration: 0 };
+        const tempAudio = new Audio(URL.createObjectURL(file));
+        tempAudio.addEventListener('loadedmetadata', async () => {
+          const songObj = {
+            fileBlob: file,
+            title,
+            artist: "Artista Desconhecido",
+            pictureUrl: null,
+            favorite: false,
+            duration: tempAudio.duration
+          };
 
-        const tempAudio = new Audio(songObj.url);
-        tempAudio.addEventListener('loadedmetadata', () => {
-          songObj.duration = tempAudio.duration;
-          updateLibraryStats();
+          const id = await saveSongToDB(songObj);
+          songObj.id = id;
+          songObj.url = URL.createObjectURL(file);
+
+          songs.push(songObj);
+          loadedCount++;
+          if (loadedCount === audioFiles.length) {
+            updateArtistDropdown();
+            renderSongList();
+            updateLibraryStats();
+          }
         });
-
-        songs.push(songObj);
-        loadedCount++;
-        if (loadedCount === audioFiles.length) {
-          updateArtistDropdown();
-          renderSongList();
-        }
       }
     });
-  });
+  }
 });
 
 function updateLibraryStats() {
@@ -240,14 +338,11 @@ function updateLibraryStats() {
   libraryStats.textContent = `${count} ${count === 1 ? 'música' : 'músicas'} (${formatTime(totalSec)})`;
 }
 
-// Extrai e separa os nomes individuais de artistas
-// Extrai, separa por vírgulas/separadores e remove duplicados dos artistas
 function updateArtistDropdown() {
   const artistSet = new Set();
 
   songs.forEach(song => {
     if (song.artist && song.artist !== "Artista Desconhecido") {
-      // Separa por vírgula, barra, &, feat. ou ft.
       const individualArtists = song.artist.split(/[,/\\&]|feat\.|ft\./i);
       individualArtists.forEach(name => {
         const cleanName = name.trim();
@@ -269,7 +364,6 @@ function updateArtistDropdown() {
   });
 }
 
-// Renderizar Lista
 function renderSongList() {
   const query = searchInput.value.toLowerCase().trim();
   const selectedArtist = artistSelect.value.toLowerCase().trim();
@@ -278,11 +372,7 @@ function renderSongList() {
   const filteredSongs = songs.map((song, originalIndex) => ({ song, originalIndex })).filter(({ song }) => {
     const matchesSearch = song.title.toLowerCase().includes(query) || song.artist.toLowerCase().includes(query);
     const matchesFav = isFavFilterActive ? song.favorite : true;
-    
-    // Verifica se o artista selecionado faz parte do campo do artista da música
-    const matchesArtist = selectedArtist 
-      ? song.artist.toLowerCase().includes(selectedArtist) 
-      : true;
+    const matchesArtist = selectedArtist ? song.artist.toLowerCase().includes(selectedArtist) : true;
 
     return matchesSearch && matchesFav && matchesArtist;
   });
@@ -310,9 +400,10 @@ function renderSongList() {
       </div>
     `;
 
-    li.querySelector('.btn-fav').addEventListener('click', (e) => {
+    li.querySelector('.btn-fav').addEventListener('click', async (e) => {
       e.stopPropagation();
       song.favorite = !song.favorite;
+      await updateSongInDB(song);
       renderSongList();
     });
 
@@ -330,7 +421,6 @@ function renderSongList() {
   });
 }
 
-// Gerenciamento da Fila de Espera
 function renderQueue() {
   if (queue.length === 0) {
     queueSection.style.display = 'none';
@@ -408,7 +498,6 @@ btnMute.addEventListener('click', () => {
   }
 });
 
-// Reprodução
 function loadAndPlaySong(index) {
   if (index < 0 || index >= songs.length) return;
 
