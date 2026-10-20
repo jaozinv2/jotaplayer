@@ -1,6 +1,7 @@
 const tabBtns = document.querySelectorAll('.tab-btn');
 const tabPanes = document.querySelectorAll('.tab-pane');
 const folderInput = document.getElementById('folder-input');
+const searchInput = document.getElementById('search-input');
 const songListElement = document.getElementById('song-list');
 const audioPlayer = document.getElementById('audio-player');
 
@@ -16,7 +17,6 @@ const currentTimeEl = document.getElementById('current-time');
 const durationTimeEl = document.getElementById('duration-time');
 const glassContainer = document.querySelector('.glass-container');
 
-// Elementos de Configuração
 const btnThemeToggle = document.getElementById('btn-theme-toggle');
 const wallpaperInput = document.getElementById('wallpaper-input');
 const btnResetWallpaper = document.getElementById('btn-reset-wallpaper');
@@ -25,11 +25,7 @@ const jsMediatags = window.jsmediatags;
 let songs = [];
 let currentSongIndex = -1;
 
-// --- PERSISTÊNCIA (LOCALSTORAGE) ---
-
-// Carrega preferências ao abrir a página
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Carregar Tema Salvo
   const savedTheme = localStorage.getItem('app-theme');
   if (savedTheme === 'light') {
     document.body.classList.remove('dark-theme');
@@ -41,14 +37,12 @@ document.addEventListener('DOMContentLoaded', () => {
     btnThemeToggle.textContent = '☀️ Mudar para Claro';
   }
 
-  // 2. Carregar Wallpaper Salvo
   const savedWallpaper = localStorage.getItem('app-wallpaper');
   if (savedWallpaper) {
     document.body.style.backgroundImage = `url('${savedWallpaper}')`;
   }
 });
 
-// --- SISTEMA DE ABAS ---
 tabBtns.forEach(btn => {
   btn.addEventListener('click', () => {
     tabBtns.forEach(b => b.classList.remove('active'));
@@ -59,7 +53,6 @@ tabBtns.forEach(btn => {
   });
 });
 
-// --- CONFIGURAÇÕES: TEMA CLARO / ESCURO ---
 btnThemeToggle.addEventListener('click', () => {
   if (document.body.classList.contains('dark-theme')) {
     document.body.classList.remove('dark-theme');
@@ -74,7 +67,6 @@ btnThemeToggle.addEventListener('click', () => {
   }
 });
 
-// --- CONFIGURAÇÕES: WALLPAPER CUSTOMIZADO / PADRÃO ---
 wallpaperInput.addEventListener('change', (event) => {
   const file = event.target.files[0];
   if (file) {
@@ -96,9 +88,7 @@ btnResetWallpaper.addEventListener('click', () => {
   document.body.style.backgroundImage = 'none';
   localStorage.removeItem('app-wallpaper');
 });
-});
 
-// --- CARREGAR PASTA DE MÚSICAS ---
 folderInput.addEventListener('change', (event) => {
   const files = Array.from(event.target.files);
   const audioFiles = files.filter(file => file.type.startsWith('audio/'));
@@ -108,9 +98,10 @@ folderInput.addEventListener('change', (event) => {
     return;
   }
 
-  songListElement.innerHTML = '';
   songs = [];
+  songListElement.innerHTML = '';
 
+  let loadedCount = 0;
   audioFiles.forEach((file) => {
     jsMediatags.read(file, {
       onSuccess: function(tag) {
@@ -127,38 +118,63 @@ folderInput.addEventListener('change', (event) => {
           pictureUrl = `data:${format};base64,${btoa(base64String)}`;
         }
 
-        addSongToList(file, title, artist, pictureUrl);
+        songs.push({ file, title, artist, pictureUrl, url: URL.createObjectURL(file) });
+        loadedCount++;
+        if (loadedCount === audioFiles.length) {
+          renderSongList();
+        }
       },
       onError: function() {
         const title = file.name.replace(/\.[^/.]+$/, "");
-        addSongToList(file, title, "Artista Desconhecido", null);
+        songs.push({ file, title, artist: "Artista Desconhecido", pictureUrl: null, url: URL.createObjectURL(file) });
+        loadedCount++;
+        if (loadedCount === audioFiles.length) {
+          renderSongList();
+        }
       }
     });
   });
 });
 
-function addSongToList(file, title, artist, pictureUrl) {
-  const index = songs.length;
-  const songObj = { file, title, artist, pictureUrl, url: URL.createObjectURL(file) };
-  songs.push(songObj);
+function renderSongList() {
+  const query = searchInput.value.toLowerCase().trim();
+  songListElement.innerHTML = '';
 
-  const li = document.createElement('li');
-  li.className = 'song-item';
-  li.innerHTML = `
-    <div class="song-info">
-      <span class="title">${title}</span>
-      <span class="artist">${artist}</span>
-    </div>
-  `;
-
-  li.addEventListener('click', () => {
-    loadAndPlaySong(index);
+  const filteredSongs = songs.map((song, originalIndex) => ({ song, originalIndex })).filter(({ song }) => {
+    return song.title.toLowerCase().includes(query) || song.artist.toLowerCase().includes(query);
   });
 
-  songListElement.appendChild(li);
+  if (filteredSongs.length === 0) {
+    songListElement.innerHTML = '<li class="empty-msg">Nenhuma música encontrada.</li>';
+    return;
+  }
+
+  filteredSongs.forEach(({ song, originalIndex }) => {
+    const li = document.createElement('li');
+    li.className = 'song-item';
+    if (originalIndex === currentSongIndex) {
+      li.classList.add('active');
+    }
+
+    li.innerHTML = `
+      <div class="song-info">
+        <span class="title">${song.title}</span>
+        <span class="artist">${song.artist}</span>
+      </div>
+    `;
+
+    li.addEventListener('click', () => {
+      loadAndPlaySong(originalIndex);
+    });
+
+    songListElement.appendChild(li);
+  });
 }
 
-// --- CONTROLES DE ÁUDIO ---
+searchInput.addEventListener('input', () => {
+  renderSongList();
+});
+
 function loadAndPlaySong(index) {
   if (index < 0 || index >= songs.length) return;
 
@@ -176,12 +192,10 @@ function loadAndPlaySong(index) {
     coverArt.innerHTML = '<span class="cover-placeholder">🎵</span>';
   }
 
-  const items = songListElement.querySelectorAll('.song-item');
-  items.forEach((item, i) => {
-    item.classList.toggle('active', i === index);
-  });
+  renderSongList();
 
   audioPlayer.src = song.url;
+  audioPlayer.volume = volumeBar.value / 100;
   audioPlayer.play();
   btnPlay.textContent = '⏸';
   glassContainer.classList.add('playing');
