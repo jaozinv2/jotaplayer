@@ -2,12 +2,7 @@ const tabBtns = document.querySelectorAll('.tab-btn');
 const tabPanes = document.querySelectorAll('.tab-pane');
 const folderInput = document.getElementById('folder-input');
 const songListElement = document.getElementById('song-list');
-
-// Dois players para permitir crossfade real entre as faixas
-const audio1 = document.getElementById('audio-player-1');
-const audio2 = document.getElementById('audio-player-2');
-let activeAudio = audio1;
-let inactiveAudio = audio2;
+const audioPlayer = document.getElementById('audio-player');
 
 const playerTitle = document.getElementById('player-title');
 const playerArtist = document.getElementById('player-artist');
@@ -21,21 +16,20 @@ const currentTimeEl = document.getElementById('current-time');
 const durationTimeEl = document.getElementById('duration-time');
 const glassContainer = document.querySelector('.glass-container');
 
-// Elementos de Configuração e Crossfade
+// Elementos de Configuração
 const btnThemeToggle = document.getElementById('btn-theme-toggle');
 const wallpaperInput = document.getElementById('wallpaper-input');
 const btnResetWallpaper = document.getElementById('btn-reset-wallpaper');
-const crossfadeRange = document.getElementById('crossfade-range');
-const crossfadeValue = document.getElementById('crossfade-value');
 
 const jsMediatags = window.jsmediatags;
 let songs = [];
 let currentSongIndex = -1;
-let crossfadeDuration = 0; // em segundos
 
 // --- PERSISTÊNCIA (LOCALSTORAGE) ---
 
+// Carrega preferências ao abrir a página
 document.addEventListener('DOMContentLoaded', () => {
+  // 1. Carregar Tema Salvo
   const savedTheme = localStorage.getItem('app-theme');
   if (savedTheme === 'light') {
     document.body.classList.remove('dark-theme');
@@ -47,16 +41,10 @@ document.addEventListener('DOMContentLoaded', () => {
     btnThemeToggle.textContent = '☀️ Mudar para Claro';
   }
 
+  // 2. Carregar Wallpaper Salvo
   const savedWallpaper = localStorage.getItem('app-wallpaper');
   if (savedWallpaper) {
     document.body.style.backgroundImage = `url('${savedWallpaper}')`;
-  }
-
-  const savedCrossfade = localStorage.getItem('app-crossfade');
-  if (savedCrossfade !== null) {
-    crossfadeDuration = parseInt(savedCrossfade, 10);
-    crossfadeRange.value = crossfadeDuration;
-    crossfadeValue.textContent = `${crossfadeDuration}s`;
   }
 });
 
@@ -71,7 +59,7 @@ tabBtns.forEach(btn => {
   });
 });
 
-// --- CONFIGURAÇÕES ---
+// --- CONFIGURAÇÕES: TEMA CLARO / ESCURO ---
 btnThemeToggle.addEventListener('click', () => {
   if (document.body.classList.contains('dark-theme')) {
     document.body.classList.remove('dark-theme');
@@ -86,6 +74,7 @@ btnThemeToggle.addEventListener('click', () => {
   }
 });
 
+// --- CONFIGURAÇÕES: WALLPAPER CUSTOMIZADO / PADRÃO ---
 wallpaperInput.addEventListener('change', (event) => {
   const file = event.target.files[0];
   if (file) {
@@ -107,14 +96,9 @@ btnResetWallpaper.addEventListener('click', () => {
   document.body.style.backgroundImage = 'none';
   localStorage.removeItem('app-wallpaper');
 });
-
-crossfadeRange.addEventListener('input', () => {
-  crossfadeDuration = parseInt(crossfadeRange.value, 10);
-  crossfadeValue.textContent = `${crossfadeDuration}s`;
-  localStorage.setItem('app-crossfade', crossfadeDuration);
 });
 
-// --- CARREGAR MÚSICAS ---
+// --- CARREGAR PASTA DE MÚSICAS ---
 folderInput.addEventListener('change', (event) => {
   const files = Array.from(event.target.files);
   const audioFiles = files.filter(file => file.type.startsWith('audio/'));
@@ -174,7 +158,7 @@ function addSongToList(file, title, artist, pictureUrl) {
   songListElement.appendChild(li);
 }
 
-// --- MOTOR DE CROSSFADE E CONTROLES DE ÁUDIO ---
+// --- CONTROLES DE ÁUDIO ---
 function loadAndPlaySong(index) {
   if (index < 0 || index >= songs.length) return;
 
@@ -197,55 +181,8 @@ function loadAndPlaySong(index) {
     item.classList.toggle('active', i === index);
   });
 
-  const targetVolume = volumeBar.value / 100;
-
-  if (crossfadeDuration > 0 && !activeAudio.paused) {
-    // Realiza a transição cruzada (Crossfade) trocando os players ativos
-    const outgoingAudio = activeAudio;
-    const incomingAudio = inactiveAudio;
-
-    incomingAudio.src = song.url;
-    incomingAudio.volume = 0;
-    incomingAudio.play();
-
-    let step = 0;
-    const steps = 20;
-    const intervalTime = (crossfadeDuration * 1000) / steps;
-    const volumeStep = targetVolume / steps;
-
-    const fadeInterval = setInterval(() => {
-      step++;
-      if (outgoingAudio.volume > volumeStep) {
-        outgoingAudio.volume -= volumeStep;
-      } else {
-        outgoingAudio.volume = 0;
-      }
-
-      if (incomingAudio.volume < targetVolume - volumeStep) {
-        incomingAudio.volume += volumeStep;
-      } else {
-        incomingAudio.volume = targetVolume;
-      }
-
-      if (step >= steps) {
-        clearInterval(fadeInterval);
-        outgoingAudio.pause();
-        outgoingAudio.currentTime = 0;
-      }
-    }, intervalTime);
-
-    activeAudio = incomingAudio;
-    inactiveAudio = outgoingAudio;
-  } else {
-    // Sem crossfade ou player parado
-    activeAudio.pause();
-    activeAudio.currentTime = 0;
-    
-    activeAudio.src = song.url;
-    activeAudio.volume = targetVolume;
-    activeAudio.play();
-  }
-
+  audioPlayer.src = song.url;
+  audioPlayer.play();
   btnPlay.textContent = '⏸';
   glassContainer.classList.add('playing');
 }
@@ -256,12 +193,12 @@ btnPlay.addEventListener('click', () => {
     return;
   }
 
-  if (activeAudio.paused) {
-    activeAudio.play();
+  if (audioPlayer.paused) {
+    audioPlayer.play();
     btnPlay.textContent = '⏸';
     glassContainer.classList.add('playing');
   } else {
-    activeAudio.pause();
+    audioPlayer.pause();
     btnPlay.textContent = '▶';
     glassContainer.classList.remove('playing');
   }
@@ -279,30 +216,29 @@ btnPrev.addEventListener('click', () => {
   loadAndPlaySong(prevIndex);
 });
 
-setInterval(() => {
-  if (!activeAudio.paused && !isNaN(activeAudio.duration)) {
-    const progress = (activeAudio.currentTime / activeAudio.duration) * 100;
+audioPlayer.addEventListener('timeupdate', () => {
+  if (!isNaN(audioPlayer.duration)) {
+    const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
     seekBar.value = progress;
 
-    currentTimeEl.textContent = formatTime(activeAudio.currentTime);
-    durationTimeEl.textContent = formatTime(activeAudio.duration);
+    currentTimeEl.textContent = formatTime(audioPlayer.currentTime);
+    durationTimeEl.textContent = formatTime(audioPlayer.duration);
   }
-}, 250);
+});
 
 seekBar.addEventListener('input', () => {
-  if (!isNaN(activeAudio.duration)) {
-    activeAudio.currentTime = (seekBar.value / 100) * activeAudio.duration;
+  if (!isNaN(audioPlayer.duration)) {
+    audioPlayer.currentTime = (seekBar.value / 100) * audioPlayer.duration;
   }
 });
 
 volumeBar.addEventListener('input', () => {
-  const vol = volumeBar.value / 100;
-  activeAudio.volume = vol;
-  inactiveAudio.volume = vol;
+  audioPlayer.volume = volumeBar.value / 100;
 });
 
-audio1.addEventListener('ended', () => { if(activeAudio === audio1) btnNext.click(); });
-audio2.addEventListener('ended', () => { if(activeAudio === audio2) btnNext.click(); });
+audioPlayer.addEventListener('ended', () => {
+  btnNext.click();
+});
 
 function formatTime(seconds) {
   const min = Math.floor(seconds / 60);
