@@ -11,8 +11,14 @@ const coverArt = document.getElementById('cover-art');
 const btnPlay = document.getElementById('btn-play');
 const btnPrev = document.getElementById('btn-prev');
 const btnNext = document.getElementById('btn-next');
+const btnShuffle = document.getElementById('btn-shuffle');
+const btnLoop = document.getElementById('btn-loop');
+const btnMute = document.getElementById('btn-mute');
+const btnFilterFav = document.getElementById('btn-filter-fav');
+const libraryStats = document.getElementById('library-stats');
 const seekBar = document.getElementById('seek-bar');
 const volumeBar = document.getElementById('volume-bar');
+const speedSelect = document.getElementById('speed-select');
 const currentTimeEl = document.getElementById('current-time');
 const durationTimeEl = document.getElementById('duration-time');
 const glassContainer = document.querySelector('.glass-container');
@@ -25,6 +31,14 @@ const jsMediatags = window.jsmediatags;
 let songs = [];
 let currentSongIndex = -1;
 
+// Estados extras
+let isShuffle = false;
+let loopMode = 0; // 0: Desligado, 1: Repetir Todos, 2: Repetir Atual
+let isFavFilterActive = false;
+let isMuted = false;
+let previousVolume = 1;
+
+// Carregar preferências salvas
 document.addEventListener('DOMContentLoaded', () => {
   const savedTheme = localStorage.getItem('app-theme');
   if (savedTheme === 'light') {
@@ -41,8 +55,15 @@ document.addEventListener('DOMContentLoaded', () => {
   if (savedWallpaper) {
     document.body.style.backgroundImage = `url('${savedWallpaper}')`;
   }
+
+  const savedSpeed = localStorage.getItem('app-speed');
+  if (savedSpeed) {
+    speedSelect.value = savedSpeed;
+    audioPlayer.playbackRate = parseFloat(savedSpeed);
+  }
 });
 
+// Sistema de Abas
 tabBtns.forEach(btn => {
   btn.addEventListener('click', () => {
     tabBtns.forEach(b => b.classList.remove('active'));
@@ -53,6 +74,7 @@ tabBtns.forEach(btn => {
   });
 });
 
+// Configurações: Tema
 btnThemeToggle.addEventListener('click', () => {
   if (document.body.classList.contains('dark-theme')) {
     document.body.classList.remove('dark-theme');
@@ -67,6 +89,14 @@ btnThemeToggle.addEventListener('click', () => {
   }
 });
 
+// Configurações: Velocidade
+speedSelect.addEventListener('change', () => {
+  const speed = parseFloat(speedSelect.value);
+  audioPlayer.playbackRate = speed;
+  localStorage.setItem('app-speed', speed);
+});
+
+// Configurações: Wallpaper
 wallpaperInput.addEventListener('change', (event) => {
   const file = event.target.files[0];
   if (file) {
@@ -89,6 +119,7 @@ btnResetWallpaper.addEventListener('click', () => {
   localStorage.removeItem('app-wallpaper');
 });
 
+// Carregar Músicas
 folderInput.addEventListener('change', (event) => {
   const files = Array.from(event.target.files);
   const audioFiles = files.filter(file => file.type.startsWith('audio/'));
@@ -118,7 +149,24 @@ folderInput.addEventListener('change', (event) => {
           pictureUrl = `data:${format};base64,${btoa(base64String)}`;
         }
 
-        songs.push({ file, title, artist, pictureUrl, url: URL.createObjectURL(file) });
+        const songObj = {
+          file,
+          title,
+          artist,
+          pictureUrl,
+          url: URL.createObjectURL(file),
+          favorite: false,
+          duration: 0
+        };
+
+        // Obter duração real do áudio via elemento temporário
+        const tempAudio = new Audio(songObj.url);
+        tempAudio.addEventListener('loadedmetadata', () => {
+          songObj.duration = tempAudio.duration;
+          updateLibraryStats();
+        });
+
+        songs.push(songObj);
         loadedCount++;
         if (loadedCount === audioFiles.length) {
           renderSongList();
@@ -126,7 +174,23 @@ folderInput.addEventListener('change', (event) => {
       },
       onError: function() {
         const title = file.name.replace(/\.[^/.]+$/, "");
-        songs.push({ file, title, artist: "Artista Desconhecido", pictureUrl: null, url: URL.createObjectURL(file) });
+        const songObj = {
+          file,
+          title,
+          artist: "Artista Desconhecido",
+          pictureUrl: null,
+          url: URL.createObjectURL(file),
+          favorite: false,
+          duration: 0
+        };
+
+        const tempAudio = new Audio(songObj.url);
+        tempAudio.addEventListener('loadedmetadata', () => {
+          songObj.duration = tempAudio.duration;
+          updateLibraryStats();
+        });
+
+        songs.push(songObj);
         loadedCount++;
         if (loadedCount === audioFiles.length) {
           renderSongList();
@@ -136,12 +200,22 @@ folderInput.addEventListener('change', (event) => {
   });
 });
 
+// Atualizar contador e tempo total da biblioteca
+function updateLibraryStats() {
+  const count = songs.length;
+  const totalSec = songs.reduce((acc, s) => acc + (isNaN(s.duration) ? 0 : s.duration), 0);
+  libraryStats.textContent = `${count} ${count === 1 ? 'música' : 'músicas'} (${formatTime(totalSec)})`;
+}
+
+// Renderizar Lista de Músicas com Filtros
 function renderSongList() {
   const query = searchInput.value.toLowerCase().trim();
   songListElement.innerHTML = '';
 
   const filteredSongs = songs.map((song, originalIndex) => ({ song, originalIndex })).filter(({ song }) => {
-    return song.title.toLowerCase().includes(query) || song.artist.toLowerCase().includes(query);
+    const matchesSearch = song.title.toLowerCase().includes(query) || song.artist.toLowerCase().includes(query);
+    const matchesFav = isFavFilterActive ? song.favorite : true;
+    return matchesSearch && matchesFav;
   });
 
   if (filteredSongs.length === 0) {
@@ -161,8 +235,18 @@ function renderSongList() {
         <span class="title">${song.title}</span>
         <span class="artist">${song.artist}</span>
       </div>
+      <button class="fav-btn" title="Favoritar">${song.favorite ? '❤️' : '🤍'}</button>
     `;
 
+    // Clicar no botão de favorito
+    const favBtn = li.querySelector('.fav-btn');
+    favBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      song.favorite = !song.favorite;
+      renderSongList();
+    });
+
+    // Clicar na música para tocar
     li.addEventListener('click', () => {
       loadAndPlaySong(originalIndex);
     });
@@ -175,6 +259,55 @@ searchInput.addEventListener('input', () => {
   renderSongList();
 });
 
+// Filtro de Favoritos
+btnFilterFav.addEventListener('click', () => {
+  isFavFilterActive = !isFavFilterActive;
+  btnFilterFav.classList.toggle('active-filter', isFavFilterActive);
+  btnFilterFav.textContent = isFavFilterActive ? '❤️' : '🤍';
+  renderSongList();
+});
+
+// Modo Aleatório (Shuffle)
+btnShuffle.addEventListener('click', () => {
+  isShuffle = !isShuffle;
+  btnShuffle.classList.toggle('active', isShuffle);
+});
+
+// Modo de Repetição (Loop)
+btnLoop.addEventListener('click', () => {
+  loopMode = (loopMode + 1) % 3;
+  if (loopMode === 0) {
+    btnLoop.textContent = '🔁';
+    btnLoop.classList.remove('active');
+    btnLoop.title = 'Repetição: Desligada';
+  } else if (loopMode === 1) {
+    btnLoop.textContent = '🔁';
+    btnLoop.classList.add('active');
+    btnLoop.title = 'Repetição: Todas';
+  } else if (loopMode === 2) {
+    btnLoop.textContent = '🔂';
+    btnLoop.classList.add('active');
+    btnLoop.title = 'Repetição: Atual';
+  }
+});
+
+// Mute Rápido
+btnMute.addEventListener('click', () => {
+  if (!isMuted) {
+    previousVolume = audioPlayer.volume;
+    audioPlayer.volume = 0;
+    volumeBar.value = 0;
+    isMuted = true;
+    btnMute.textContent = '🔇';
+  } else {
+    audioPlayer.volume = previousVolume;
+    volumeBar.value = previousVolume * 100;
+    isMuted = false;
+    btnMute.textContent = '🔊';
+  }
+});
+
+// Controles de Áudio e Reprodução
 function loadAndPlaySong(index) {
   if (index < 0 || index >= songs.length) return;
 
@@ -195,6 +328,7 @@ function loadAndPlaySong(index) {
   renderSongList();
 
   audioPlayer.src = song.url;
+  audioPlayer.playbackRate = parseFloat(speedSelect.value);
   audioPlayer.volume = volumeBar.value / 100;
   audioPlayer.play();
   btnPlay.textContent = '⏸';
@@ -218,10 +352,22 @@ btnPlay.addEventListener('click', () => {
   }
 });
 
+function getNextIndex() {
+  if (songs.length === 0) return -1;
+  if (isShuffle) {
+    let rand = Math.floor(Math.random() * songs.length);
+    if (rand === currentSongIndex && songs.length > 1) {
+      rand = (rand + 1) % songs.length;
+    }
+    return rand;
+  } else {
+    return (currentSongIndex + 1) % songs.length;
+  }
+}
+
 btnNext.addEventListener('click', () => {
   if (songs.length === 0) return;
-  const nextIndex = (currentSongIndex + 1) % songs.length;
-  loadAndPlaySong(nextIndex);
+  loadAndPlaySong(getNextIndex());
 });
 
 btnPrev.addEventListener('click', () => {
@@ -247,14 +393,30 @@ seekBar.addEventListener('input', () => {
 });
 
 volumeBar.addEventListener('input', () => {
-  audioPlayer.volume = volumeBar.value / 100;
+  const vol = volumeBar.value / 100;
+  audioPlayer.volume = vol;
+  if (vol > 0) {
+    isMuted = false;
+    btnMute.textContent = '🔊';
+  }
 });
 
 audioPlayer.addEventListener('ended', () => {
-  btnNext.click();
+  if (loopMode === 2) {
+    // Repetir a faixa atual
+    audioPlayer.currentTime = 0;
+    audioPlayer.play();
+  } else if (loopMode === 1 || isShuffle || currentSongIndex < songs.length - 1) {
+    btnNext.click();
+  } else {
+    // Parar ao fim da lista se loop estiver desligado
+    btnPlay.textContent = '▶';
+    glassContainer.classList.remove('playing');
+  }
 });
 
 function formatTime(seconds) {
+  if (isNaN(seconds) || seconds < 0) return "0:00";
   const min = Math.floor(seconds / 60);
   const sec = Math.floor(seconds % 60);
   return `${min}:${sec < 10 ? '0' : ''}${sec}`;
