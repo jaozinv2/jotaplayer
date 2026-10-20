@@ -62,7 +62,7 @@
         </div>
       </section>
 
-      <!-- ABA 2: BIBLIOTECA DE MÚSICAS -->
+      <!-- ABA 2: BIBLIOTECA E FILA -->
       <section id="tab-library" class="tab-pane">
         <header class="library-header">
           <div>
@@ -78,8 +78,21 @@
           </div>
         </header>
 
-        <div class="search-box">
+        <!-- Filtros e Busca -->
+        <div class="filter-controls">
           <input type="text" id="search-input" placeholder="Pesquisar música ou artista...">
+          <select id="artist-select">
+            <option value="">Todos os Artistas</option>
+          </select>
+        </div>
+
+        <!-- Seção de Fila de Espera (Playlist Temporária) -->
+        <div id="queue-section" class="queue-section" style="display: none;">
+          <div class="queue-header">
+            <span>Fila de Espera (<span id="queue-count">0</span>)</span>
+            <button id="btn-clear-queue" class="btn-text">Limpar</button>
+          </div>
+          <ul id="queue-list" class="queue-list"></ul>
         </div>
 
         <div class="song-list-container">
@@ -112,6 +125,12 @@
               <option value="1.5">1.5x</option>
               <option value="2.0">2.0x</option>
             </select>
+          </div>
+
+          <!-- Exportar Favoritos -->
+          <div class="setting-item">
+            <span>Lista de Favoritos</span>
+            <button id="btn-export-favs" class="setting-action-btn">📥 Baixar TXT</button>
           </div>
 
           <!-- Escolher Wallpaper -->
