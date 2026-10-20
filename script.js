@@ -92,7 +92,8 @@ async function updateSongInDB(songData) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
-    const req = store.put(songData);
+    const { url, ...dataToSave } = songData;
+    const req = store.put(dataToSave);
     req.onsuccess = () => resolve();
     req.onerror = (e) => reject(e.target.error);
   });
@@ -185,7 +186,7 @@ tabBtns.forEach(btn => {
   });
 });
 
-// Ajustes e Configurações
+// Configurações
 btnThemeToggle.addEventListener('click', () => {
   if (document.body.classList.contains('dark-theme')) {
     document.body.classList.remove('dark-theme');
@@ -249,7 +250,7 @@ btnExportFavs.addEventListener('click', () => {
   URL.revokeObjectURL(url);
 });
 
-// Importação e salvamento de novos arquivos
+// Importação e salvamento imediato no IndexedDB
 folderInput.addEventListener('change', async (event) => {
   const files = Array.from(event.target.files);
   const audioFiles = files.filter(file => file.type.startsWith('audio/'));
@@ -278,55 +279,72 @@ folderInput.addEventListener('change', async (event) => {
           pictureUrl = `data:${format};base64,${btoa(base64String)}`;
         }
 
-        const tempAudio = new Audio(URL.createObjectURL(file));
-        tempAudio.addEventListener('loadedmetadata', async () => {
-          const songObj = {
-            fileBlob: file,
-            title,
-            artist,
-            pictureUrl,
-            favorite: false,
-            duration: tempAudio.duration
-          };
+        const songObj = {
+          fileBlob: file,
+          title,
+          artist,
+          pictureUrl,
+          favorite: false,
+          duration: 0
+        };
 
+        try {
           const id = await saveSongToDB(songObj);
           songObj.id = id;
-          songObj.url = URL.createObjectURL(file);
+        } catch (err) {
+          console.error("Erro ao salvar no banco local:", err);
+        }
 
-          songs.push(songObj);
-          loadedCount++;
-          if (loadedCount === audioFiles.length) {
-            updateArtistDropdown();
-            renderSongList();
-            updateLibraryStats();
-          }
+        songObj.url = URL.createObjectURL(file);
+
+        // Carrega duração em segundo plano de forma segura
+        const tempAudio = new Audio(songObj.url);
+        tempAudio.addEventListener('loadedmetadata', () => {
+          songObj.duration = tempAudio.duration;
+          updateLibraryStats();
         });
+
+        songs.push(songObj);
+        loadedCount++;
+        if (loadedCount === audioFiles.length) {
+          updateArtistDropdown();
+          renderSongList();
+          updateLibraryStats();
+        }
       },
       onError: async function() {
         const title = file.name.replace(/\.[^/.]+$/, "");
-        const tempAudio = new Audio(URL.createObjectURL(file));
-        tempAudio.addEventListener('loadedmetadata', async () => {
-          const songObj = {
-            fileBlob: file,
-            title,
-            artist: "Artista Desconhecido",
-            pictureUrl: null,
-            favorite: false,
-            duration: tempAudio.duration
-          };
+        const songObj = {
+          fileBlob: file,
+          title,
+          artist: "Artista Desconhecido",
+          pictureUrl: null,
+          favorite: false,
+          duration: 0
+        };
 
+        try {
           const id = await saveSongToDB(songObj);
           songObj.id = id;
-          songObj.url = URL.createObjectURL(file);
+        } catch (err) {
+          console.error("Erro ao salvar no banco local:", err);
+        }
 
-          songs.push(songObj);
-          loadedCount++;
-          if (loadedCount === audioFiles.length) {
-            updateArtistDropdown();
-            renderSongList();
-            updateLibraryStats();
-          }
+        songObj.url = URL.createObjectURL(file);
+
+        const tempAudio = new Audio(songObj.url);
+        tempAudio.addEventListener('loadedmetadata', () => {
+          songObj.duration = tempAudio.duration;
+          updateLibraryStats();
         });
+
+        songs.push(songObj);
+        loadedCount++;
+        if (loadedCount === audioFiles.length) {
+          updateArtistDropdown();
+          renderSongList();
+          updateLibraryStats();
+        }
       }
     });
   }
