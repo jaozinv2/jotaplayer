@@ -47,13 +47,15 @@
           </div>
 
           <div class="controls-row">
+            <button id="btn-shuffle" class="control-btn secondary-control" title="Modo Aleatório">🔀</button>
             <button id="btn-prev" class="control-btn" title="Anterior">⏮</button>
             <button id="btn-play" class="control-btn play-btn" title="Play/Pause">▶</button>
             <button id="btn-next" class="control-btn" title="Próxima">⏭</button>
+            <button id="btn-loop" class="control-btn secondary-control" title="Modo de Repetição">🔁</button>
           </div>
 
           <div class="volume-section">
-            <span>🔊</span>
+            <span id="btn-mute" style="cursor: pointer;" title="Mutar / Desmutar">🔊</span>
             <input type="range" id="volume-bar" value="100" max="100">
           </div>
 
@@ -63,11 +65,17 @@
       <!-- ABA 2: BIBLIOTECA DE MÚSICAS -->
       <section id="tab-library" class="tab-pane">
         <header class="library-header">
-          <h3>Sua Coleção</h3>
-          <label for="folder-input" class="file-btn">
-            <span>📁 Adicionar Músicas</span>
-            <input type="file" id="folder-input" multiple accept="audio/*">
-          </label>
+          <div>
+            <h3>Sua Coleção</h3>
+            <span id="library-stats">0 músicas (0:00)</span>
+          </div>
+          <div class="library-actions">
+            <button id="btn-filter-fav" class="file-btn" title="Filtrar Favoritos">🤍</button>
+            <label for="folder-input" class="file-btn">
+              <span>📁 Adicionar</span>
+              <input type="file" id="folder-input" multiple accept="audio/*">
+            </label>
+          </div>
         </header>
 
         <div class="search-box">
@@ -76,7 +84,7 @@
 
         <div class="song-list-container">
           <ul id="song-list" class="song-list">
-            <li class="empty-msg">Nenhuma música carregada. Clique em "Adicionar Músicas" para selecionar suas faixas.</li>
+            <li class="empty-msg">Nenhuma música carregada. Clique em "Adicionar" para selecionar suas faixas.</li>
           </ul>
         </div>
       </section>
@@ -92,6 +100,18 @@
           <div class="setting-item">
             <span>Tema da Interface</span>
             <button id="btn-theme-toggle" class="setting-action-btn">☀️ Mudar para Claro</button>
+          </div>
+
+          <!-- Velocidade de Reprodução -->
+          <div class="setting-item">
+            <span>Velocidade de Reprodução</span>
+            <select id="speed-select" class="setting-action-btn">
+              <option value="0.75">0.75x</option>
+              <option value="1" selected>1.0x (Normal)</option>
+              <option value="1.25">1.25x</option>
+              <option value="1.5">1.5x</option>
+              <option value="2.0">2.0x</option>
+            </select>
           </div>
 
           <!-- Escolher Wallpaper -->
