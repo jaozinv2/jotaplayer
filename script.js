@@ -2,6 +2,7 @@ const tabBtns = document.querySelectorAll('.tab-btn');
 const tabPanes = document.querySelectorAll('.tab-pane');
 const folderInput = document.getElementById('folder-input');
 const searchInput = document.getElementById('search-input');
+const artistSelect = document.getElementById('artist-select');
 const songListElement = document.getElementById('song-list');
 const audioPlayer = document.getElementById('audio-player');
 
@@ -15,6 +16,7 @@ const btnShuffle = document.getElementById('btn-shuffle');
 const btnLoop = document.getElementById('btn-loop');
 const btnMute = document.getElementById('btn-mute');
 const btnFilterFav = document.getElementById('btn-filter-fav');
+const btnExportFavs = document.getElementById('btn-export-favs');
 const libraryStats = document.getElementById('library-stats');
 const seekBar = document.getElementById('seek-bar');
 const volumeBar = document.getElementById('volume-bar');
@@ -23,22 +25,28 @@ const currentTimeEl = document.getElementById('current-time');
 const durationTimeEl = document.getElementById('duration-time');
 const glassContainer = document.querySelector('.glass-container');
 
+// Elementos da Fila de Espera
+const queueSection = document.getElementById('queue-section');
+const queueListElement = document.getElementById('queue-list');
+const queueCountEl = document.getElementById('queue-count');
+const btnClearQueue = document.getElementById('btn-clear-queue');
+
 const btnThemeToggle = document.getElementById('btn-theme-toggle');
 const wallpaperInput = document.getElementById('wallpaper-input');
 const btnResetWallpaper = document.getElementById('btn-reset-wallpaper');
 
 const jsMediatags = window.jsmediatags;
 let songs = [];
+let queue = []; // Lista de índices das faixas na fila de espera
 let currentSongIndex = -1;
 
-// Estados extras
 let isShuffle = false;
-let loopMode = 0; // 0: Desligado, 1: Repetir Todos, 2: Repetir Atual
+let loopMode = 0; // 0: Off, 1: Loop All, 2: Loop One
 let isFavFilterActive = false;
 let isMuted = false;
 let previousVolume = 1;
 
-// Carregar preferências salvas
+// Carregar preferências
 document.addEventListener('DOMContentLoaded', () => {
   const savedTheme = localStorage.getItem('app-theme');
   if (savedTheme === 'light') {
@@ -61,7 +69,30 @@ document.addEventListener('DOMContentLoaded', () => {
     speedSelect.value = savedSpeed;
     audioPlayer.playbackRate = parseFloat(savedSpeed);
   }
+
+  setupMediaSession();
 });
+
+// Suporte à Media Session API (Notificações e Fone de Ouvido)
+function setupMediaSession() {
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.setActionHandler('play', () => btnPlay.click());
+    navigator.mediaSession.setActionHandler('pause', () => btnPlay.click());
+    navigator.mediaSession.setActionHandler('previoustrack', () => btnPrev.click());
+    navigator.mediaSession.setActionHandler('nexttrack', () => btnNext.click());
+  }
+}
+
+function updateMediaSessionMetadata(song) {
+  if ('mediaSession' in navigator && song) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: song.title,
+      artist: song.artist,
+      album: 'JotaPlayer',
+      artwork: song.pictureUrl ? [{ src: song.pictureUrl, sizes: '512x512', type: 'image/png' }] : []
+    });
+  }
+}
 
 // Sistema de Abas
 tabBtns.forEach(btn => {
@@ -74,7 +105,7 @@ tabBtns.forEach(btn => {
   });
 });
 
-// Configurações: Tema
+// Configurações
 btnThemeToggle.addEventListener('click', () => {
   if (document.body.classList.contains('dark-theme')) {
     document.body.classList.remove('dark-theme');
@@ -89,14 +120,12 @@ btnThemeToggle.addEventListener('click', () => {
   }
 });
 
-// Configurações: Velocidade
 speedSelect.addEventListener('change', () => {
   const speed = parseFloat(speedSelect.value);
   audioPlayer.playbackRate = speed;
   localStorage.setItem('app-speed', speed);
 });
 
-// Configurações: Wallpaper
 wallpaperInput.addEventListener('change', (event) => {
   const file = event.target.files[0];
   if (file) {
@@ -119,18 +148,38 @@ btnResetWallpaper.addEventListener('click', () => {
   localStorage.removeItem('app-wallpaper');
 });
 
-// Carregar Músicas
+// Exportar Favoritos
+btnExportFavs.addEventListener('click', () => {
+  const favs = songs.filter(s => s.favorite);
+  if (favs.length === 0) {
+    alert('Nenhuma música marcada como favorita.');
+    return;
+  }
+
+  let text = '=== MINHAS MÚSICAS FAVORITAS (JOTAPLAYER) ===\n\n';
+  favs.forEach((s, i) => {
+    text += `${i + 1}. ${s.title} - ${s.artist}\n`;
+  });
+
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'favoritos_jotaplayer.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// Carregar Arquivos
 folderInput.addEventListener('change', (event) => {
   const files = Array.from(event.target.files);
   const audioFiles = files.filter(file => file.type.startsWith('audio/'));
 
-  if (audioFiles.length === 0) {
-    songListElement.innerHTML = '<li class="empty-msg">Nenhum áudio encontrado.</li>';
-    return;
-  }
+  if (audioFiles.length === 0) return;
 
   songs = [];
-  songListElement.innerHTML = '';
+  queue = [];
+  renderQueue();
 
   let loadedCount = 0;
   audioFiles.forEach((file) => {
@@ -149,17 +198,8 @@ folderInput.addEventListener('change', (event) => {
           pictureUrl = `data:${format};base64,${btoa(base64String)}`;
         }
 
-        const songObj = {
-          file,
-          title,
-          artist,
-          pictureUrl,
-          url: URL.createObjectURL(file),
-          favorite: false,
-          duration: 0
-        };
+        const songObj = { file, title, artist, pictureUrl, url: URL.createObjectURL(file), favorite: false, duration: 0 };
 
-        // Obter duração real do áudio via elemento temporário
         const tempAudio = new Audio(songObj.url);
         tempAudio.addEventListener('loadedmetadata', () => {
           songObj.duration = tempAudio.duration;
@@ -169,20 +209,13 @@ folderInput.addEventListener('change', (event) => {
         songs.push(songObj);
         loadedCount++;
         if (loadedCount === audioFiles.length) {
+          updateArtistDropdown();
           renderSongList();
         }
       },
       onError: function() {
         const title = file.name.replace(/\.[^/.]+$/, "");
-        const songObj = {
-          file,
-          title,
-          artist: "Artista Desconhecido",
-          pictureUrl: null,
-          url: URL.createObjectURL(file),
-          favorite: false,
-          duration: 0
-        };
+        const songObj = { file, title, artist: "Artista Desconhecido", pictureUrl: null, url: URL.createObjectURL(file), favorite: false, duration: 0 };
 
         const tempAudio = new Audio(songObj.url);
         tempAudio.addEventListener('loadedmetadata', () => {
@@ -193,6 +226,7 @@ folderInput.addEventListener('change', (event) => {
         songs.push(songObj);
         loadedCount++;
         if (loadedCount === audioFiles.length) {
+          updateArtistDropdown();
           renderSongList();
         }
       }
@@ -200,22 +234,34 @@ folderInput.addEventListener('change', (event) => {
   });
 });
 
-// Atualizar contador e tempo total da biblioteca
 function updateLibraryStats() {
   const count = songs.length;
   const totalSec = songs.reduce((acc, s) => acc + (isNaN(s.duration) ? 0 : s.duration), 0);
   libraryStats.textContent = `${count} ${count === 1 ? 'música' : 'músicas'} (${formatTime(totalSec)})`;
 }
 
-// Renderizar Lista de Músicas com Filtros
+function updateArtistDropdown() {
+  const artists = [...new Set(songs.map(s => s.artist))].sort();
+  artistSelect.innerHTML = '<option value="">Todos os Artistas</option>';
+  artists.forEach(artist => {
+    const opt = document.createElement('option');
+    opt.value = artist;
+    opt.textContent = artist;
+    artistSelect.appendChild(opt);
+  });
+}
+
+// Renderizar Lista
 function renderSongList() {
   const query = searchInput.value.toLowerCase().trim();
+  const selectedArtist = artistSelect.value;
   songListElement.innerHTML = '';
 
   const filteredSongs = songs.map((song, originalIndex) => ({ song, originalIndex })).filter(({ song }) => {
     const matchesSearch = song.title.toLowerCase().includes(query) || song.artist.toLowerCase().includes(query);
     const matchesFav = isFavFilterActive ? song.favorite : true;
-    return matchesSearch && matchesFav;
+    const matchesArtist = selectedArtist ? song.artist === selectedArtist : true;
+    return matchesSearch && matchesFav && matchesArtist;
   });
 
   if (filteredSongs.length === 0) {
@@ -235,18 +281,24 @@ function renderSongList() {
         <span class="title">${song.title}</span>
         <span class="artist">${song.artist}</span>
       </div>
-      <button class="fav-btn" title="Favoritar">${song.favorite ? '❤️' : '🤍'}</button>
+      <div class="item-actions">
+        <button class="action-btn-small btn-add-queue" title="Adicionar à Fila">➕</button>
+        <button class="action-btn-small btn-fav" title="Favoritar">${song.favorite ? '❤️' : '🤍'}</button>
+      </div>
     `;
 
-    // Clicar no botão de favorito
-    const favBtn = li.querySelector('.fav-btn');
-    favBtn.addEventListener('click', (e) => {
+    li.querySelector('.btn-fav').addEventListener('click', (e) => {
       e.stopPropagation();
       song.favorite = !song.favorite;
       renderSongList();
     });
 
-    // Clicar na música para tocar
+    li.querySelector('.btn-add-queue').addEventListener('click', (e) => {
+      e.stopPropagation();
+      queue.push(originalIndex);
+      renderQueue();
+    });
+
     li.addEventListener('click', () => {
       loadAndPlaySong(originalIndex);
     });
@@ -255,11 +307,43 @@ function renderSongList() {
   });
 }
 
-searchInput.addEventListener('input', () => {
-  renderSongList();
+// Gerenciamento da Fila de Espera
+function renderQueue() {
+  if (queue.length === 0) {
+    queueSection.style.display = 'none';
+    return;
+  }
+
+  queueSection.style.display = 'block';
+  queueCountEl.textContent = queue.length;
+  queueListElement.innerHTML = '';
+
+  queue.forEach((songIdx, qIdx) => {
+    const song = songs[songIdx];
+    const li = document.createElement('li');
+    li.className = 'queue-item';
+    li.innerHTML = `
+      <span>${song.title}</span>
+      <button class="btn-text">❌</button>
+    `;
+
+    li.querySelector('button').addEventListener('click', () => {
+      queue.splice(qIdx, 1);
+      renderQueue();
+    });
+
+    queueListElement.appendChild(li);
+  });
+}
+
+btnClearQueue.addEventListener('click', () => {
+  queue = [];
+  renderQueue();
 });
 
-// Filtro de Favoritos
+searchInput.addEventListener('input', renderSongList);
+artistSelect.addEventListener('change', renderSongList);
+
 btnFilterFav.addEventListener('click', () => {
   isFavFilterActive = !isFavFilterActive;
   btnFilterFav.classList.toggle('active-filter', isFavFilterActive);
@@ -267,31 +351,25 @@ btnFilterFav.addEventListener('click', () => {
   renderSongList();
 });
 
-// Modo Aleatório (Shuffle)
 btnShuffle.addEventListener('click', () => {
   isShuffle = !isShuffle;
   btnShuffle.classList.toggle('active', isShuffle);
 });
 
-// Modo de Repetição (Loop)
 btnLoop.addEventListener('click', () => {
   loopMode = (loopMode + 1) % 3;
   if (loopMode === 0) {
     btnLoop.textContent = '🔁';
     btnLoop.classList.remove('active');
-    btnLoop.title = 'Repetição: Desligada';
   } else if (loopMode === 1) {
     btnLoop.textContent = '🔁';
     btnLoop.classList.add('active');
-    btnLoop.title = 'Repetição: Todas';
   } else if (loopMode === 2) {
     btnLoop.textContent = '🔂';
     btnLoop.classList.add('active');
-    btnLoop.title = 'Repetição: Atual';
   }
 });
 
-// Mute Rápido
 btnMute.addEventListener('click', () => {
   if (!isMuted) {
     previousVolume = audioPlayer.volume;
@@ -307,7 +385,7 @@ btnMute.addEventListener('click', () => {
   }
 });
 
-// Controles de Áudio e Reprodução
+// Reprodução
 function loadAndPlaySong(index) {
   if (index < 0 || index >= songs.length) return;
 
@@ -325,6 +403,7 @@ function loadAndPlaySong(index) {
     coverArt.innerHTML = '<span class="cover-placeholder">🎵</span>';
   }
 
+  updateMediaSessionMetadata(song);
   renderSongList();
 
   audioPlayer.src = song.url;
@@ -353,16 +432,24 @@ btnPlay.addEventListener('click', () => {
 });
 
 function getNextIndex() {
-  if (songs.length === 0) return -1;
+  // Prioridade 1: Fila de Espera
+  if (queue.length > 0) {
+    const nextIdx = queue.shift();
+    renderQueue();
+    return nextIdx;
+  }
+
+  // Prioridade 2: Modo Aleatório
   if (isShuffle) {
     let rand = Math.floor(Math.random() * songs.length);
     if (rand === currentSongIndex && songs.length > 1) {
       rand = (rand + 1) % songs.length;
     }
     return rand;
-  } else {
-    return (currentSongIndex + 1) % songs.length;
   }
+
+  // Prioridade 3: Sequência Padrão
+  return (currentSongIndex + 1) % songs.length;
 }
 
 btnNext.addEventListener('click', () => {
@@ -403,13 +490,11 @@ volumeBar.addEventListener('input', () => {
 
 audioPlayer.addEventListener('ended', () => {
   if (loopMode === 2) {
-    // Repetir a faixa atual
     audioPlayer.currentTime = 0;
     audioPlayer.play();
-  } else if (loopMode === 1 || isShuffle || currentSongIndex < songs.length - 1) {
+  } else if (loopMode === 1 || isShuffle || queue.length > 0 || currentSongIndex < songs.length - 1) {
     btnNext.click();
   } else {
-    // Parar ao fim da lista se loop estiver desligado
     btnPlay.textContent = '▶';
     glassContainer.classList.remove('playing');
   }
