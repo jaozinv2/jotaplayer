@@ -27,9 +27,7 @@ let currentSongIndex = -1;
 
 // --- PERSISTÊNCIA (LOCALSTORAGE) ---
 
-// Carrega preferências ao abrir a página
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Carregar Tema Salvo
   const savedTheme = localStorage.getItem('app-theme');
   if (savedTheme === 'light') {
     document.body.classList.remove('dark-theme');
@@ -41,7 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btnThemeToggle.textContent = '☀️ Mudar para Claro';
   }
 
-  // 2. Carregar Wallpaper Salvo
   const savedWallpaper = localStorage.getItem('app-wallpaper');
   if (savedWallpaper) {
     document.body.style.backgroundImage = `url('${savedWallpaper}')`;
@@ -96,9 +93,8 @@ btnResetWallpaper.addEventListener('click', () => {
   document.body.style.backgroundImage = 'none';
   localStorage.removeItem('app-wallpaper');
 });
-});
 
-// --- CARREGAR PASTA DE MÚSICAS ---
+// --- CARREGAR MÚSICAS ---
 folderInput.addEventListener('change', (event) => {
   const files = Array.from(event.target.files);
   const audioFiles = files.filter(file => file.type.startsWith('audio/'));
