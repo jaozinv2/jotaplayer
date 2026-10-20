@@ -175,6 +175,49 @@ function updateMediaSessionMetadata(song) {
   }
 }
 
+// --- ATALHOS DE TECLADO ---
+document.addEventListener('keydown', (e) => {
+  // Ignora se estiver digitando em campos de texto/busca ou selects
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+    return;
+  }
+
+  const key = e.key.toLowerCase();
+
+  // Q e E para alternar abas
+  if (key === 'q' || key === 'e') {
+    const tabs = Array.from(tabBtns);
+    const activeIndex = tabs.findIndex(btn => btn.classList.contains('active'));
+    let newIndex = activeIndex;
+    
+    if (key === 'q') {
+      newIndex = activeIndex - 1;
+      if (newIndex < 0) newIndex = tabs.length - 1;
+    } else if (key === 'e') {
+      newIndex = activeIndex + 1;
+      if (newIndex >= tabs.length) newIndex = 0;
+    }
+    
+    tabs[newIndex].click();
+    e.preventDefault();
+  }
+
+  // Setas para a esquerda e direita (Música anterior / Próxima)
+  if (e.key === 'ArrowLeft') {
+    btnPrev.click();
+    e.preventDefault();
+  } else if (e.key === 'ArrowRight') {
+    btnNext.click();
+    e.preventDefault();
+  }
+
+  // Barra de espaço para Play / Pause
+  if (e.code === 'Space' || e.key === ' ') {
+    btnPlay.click();
+    e.preventDefault();
+  }
+});
+
 // Sistema de Abas
 tabBtns.forEach(btn => {
   btn.addEventListener('click', () => {
@@ -297,7 +340,6 @@ folderInput.addEventListener('change', async (event) => {
 
         songObj.url = URL.createObjectURL(file);
 
-        // Carrega duração em segundo plano de forma segura
         const tempAudio = new Audio(songObj.url);
         tempAudio.addEventListener('loadedmetadata', () => {
           songObj.duration = tempAudio.duration;
