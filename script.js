@@ -27,7 +27,9 @@ let currentSongIndex = -1;
 
 // --- PERSISTÊNCIA (LOCALSTORAGE) ---
 
+// Carrega preferências ao abrir a página
 document.addEventListener('DOMContentLoaded', () => {
+  // 1. Carregar Tema Salvo
   const savedTheme = localStorage.getItem('app-theme');
   if (savedTheme === 'light') {
     document.body.classList.remove('dark-theme');
@@ -39,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnThemeToggle.textContent = '☀️ Mudar para Claro';
   }
 
+  // 2. Carregar Wallpaper Salvo
   const savedWallpaper = localStorage.getItem('app-wallpaper');
   if (savedWallpaper) {
     document.body.style.backgroundImage = `url('${savedWallpaper}')`;
@@ -93,8 +96,9 @@ btnResetWallpaper.addEventListener('click', () => {
   document.body.style.backgroundImage = 'none';
   localStorage.removeItem('app-wallpaper');
 });
+});
 
-// --- CARREGAR MÚSICAS ---
+// --- CARREGAR PASTA DE MÚSICAS ---
 folderInput.addEventListener('change', (event) => {
   const files = Array.from(event.target.files);
   const audioFiles = files.filter(file => file.type.startsWith('audio/'));
@@ -241,38 +245,3 @@ function formatTime(seconds) {
   const sec = Math.floor(seconds % 60);
   return `${min}:${sec < 10 ? '0' : ''}${sec}`;
 }
-
-// --- ATALHOS DE TECLADO ---
-window.addEventListener('keydown', (event) => {
-  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
-
-  const tabs = Array.from(tabBtns);
-  const activeTabIndex = tabs.findIndex(btn => btn.classList.contains('active'));
-
-  switch (event.code) {
-    case 'KeyQ': {
-      const prevTab = (activeTabIndex - 1 + tabs.length) % tabs.length;
-      tabs[prevTab].click();
-      break;
-    }
-    case 'KeyE': {
-      const nextTab = (activeTabIndex + 1) % tabs.length;
-      tabs[nextTab].click();
-      break;
-    }
-    case 'ArrowLeft':
-    case 'ArrowUp':
-      event.preventDefault();
-      btnPrev.click();
-      break;
-    case 'ArrowRight':
-    case 'ArrowDown':
-      event.preventDefault();
-      btnNext.click();
-      break;
-    case 'Space':
-      event.preventDefault();
-      btnPlay.click();
-      break;
-  }
-});
