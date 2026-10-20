@@ -241,12 +241,13 @@ function updateLibraryStats() {
 }
 
 // Extrai e separa os nomes individuais de artistas
+// Extrai, separa por vírgulas/separadores e remove duplicados dos artistas
 function updateArtistDropdown() {
   const artistSet = new Set();
 
   songs.forEach(song => {
     if (song.artist && song.artist !== "Artista Desconhecido") {
-      // Separa por vírgulas, barras, &, feat. ou ft.
+      // Separa por vírgula, barra, &, feat. ou ft.
       const individualArtists = song.artist.split(/[,/\\&]|feat\.|ft\./i);
       individualArtists.forEach(name => {
         const cleanName = name.trim();
