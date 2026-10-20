@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JotaPlayer🎵</title>
   
+  <!-- Linhas obrigatórias para o PWA / PWABuilder -->
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#121212">
 
@@ -102,12 +103,23 @@
           <div class="setting-item reset-wp">
             <button id="btn-reset-wallpaper" class="setting-action-btn secondary">Restaurar Wallpaper Original</button>
           </div>
+
+          <!-- Configuração de Crossfade -->
+          <div class="setting-item">
+            <span>Crossfade (Segundos)</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span id="crossfade-value">0s</span>
+              <input type="range" id="crossfade-range" min="0" max="10" value="0" step="1" style="width: 100px;">
+            </div>
+          </div>
         </div>
       </section>
 
     </div>
 
-    <audio id="audio-player"></audio>
+    <!-- Dois elementos de áudio para permitir a transição cruzada (crossfade) -->
+    <audio id="audio-player-1"></audio>
+    <audio id="audio-player-2"></audio>
   </div>
 
   <script src="script.js"></script>
