@@ -543,3 +543,35 @@ body.light-theme #speed-select {
   background: transparent;
   padding: 0;
 }
+/* --- CORREÇÃO DE VISIBILIDADE NOS DROPDOWNS (<select>) --- */
+
+/* Estilo do elemento select principal */
+select.setting-action-btn,
+.filter-controls select {
+  background-color: var(--item-bg-dark);
+  color: var(--text-dark);
+  border: 1px solid var(--border-dark);
+  appearance: none; /* Uniformiza o visual entre navegadores */
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+/* Força cores visíveis para todas as opções do menu no tema escuro */
+body.dark-theme select option {
+  background-color: #1e1e1e !important;
+  color: #ffffff !important;
+}
+
+/* Ajuste de cores para as opções no tema claro */
+body.light-theme select option {
+  background-color: #ffffff !important;
+  color: #1e1e1e !important;
+}
+
+/* Ajuste no modo claro para o controle select */
+body.light-theme select.setting-action-btn,
+body.light-theme .filter-controls select {
+  background-color: var(--item-bg-light);
+  color: var(--text-light);
+  border-color: var(--border-light);
+}
